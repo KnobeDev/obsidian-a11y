@@ -50,20 +50,26 @@ interface KbdTreeEl extends HTMLElement {
   _a11yTreeKbd?: TreeHandlers;
 }
 
-function unbind(el: KbdTreeEl): void {
-  const h = el._a11yTreeKbd;
+/**
+ * Remove the tree-keyboard listeners from a single element, if any. Exported so
+ * structure.ts can strip them when a pane that was once treated as a tree is
+ * demoted to a flat list (e.g. after a reload changed which views qualify).
+ */
+export function detachTreeKeyboard(el: HTMLElement): void {
+  const node = el as KbdTreeEl;
+  const h = node._a11yTreeKbd;
   if (!h) return;
-  el.removeEventListener("keydown", h.keydown);
-  el.removeEventListener("keyup", h.keyup);
-  el.removeEventListener("click", h.click);
-  el.removeEventListener("focusin", h.focusin);
-  el.removeEventListener("focusout", h.focusout);
-  delete el._a11yTreeKbd;
+  node.removeEventListener("keydown", h.keydown);
+  node.removeEventListener("keyup", h.keyup);
+  node.removeEventListener("click", h.click);
+  node.removeEventListener("focusin", h.focusin);
+  node.removeEventListener("focusout", h.focusout);
+  delete node._a11yTreeKbd;
 }
 
 /** Remove every tree-keyboard listener in a document (called on plugin unload). */
 export function uninstallTreeKeyboard(doc: Document): void {
-  doc.querySelectorAll<KbdTreeEl>('[role="tree"]').forEach(unbind);
+  doc.querySelectorAll<HTMLElement>('[role="tree"]').forEach(detachTreeKeyboard);
 }
 
 function visibleItems(tree: Element): HTMLElement[] {
@@ -95,7 +101,12 @@ function parentItem(item: HTMLElement, tree: Element): HTMLElement | null {
   return null;
 }
 
-/** Accessible name for the whole tree, from the enclosing view's data-type. */
+/**
+ * Accessible name for the whole tree, from the enclosing view's data-type.
+ * Only genuinely hierarchical views reach here (see HIERARCHICAL_VIEWS in
+ * structure.ts); flat panes such as search, backlinks, and tags are exposed as
+ * lists, never trees, so they are intentionally absent from this switch.
+ */
 function labelForTree(tree: Element): string {
   const type = tree.closest(".workspace-leaf-content")?.getAttribute("data-type");
   switch (type) {
@@ -105,10 +116,6 @@ function labelForTree(tree: Element): string {
       return "Outline";
     case "bookmarks":
       return "Bookmarks";
-    case "tag":
-      return "Tags";
-    case "search":
-      return "Search results";
     default:
       return "Navigation";
   }
@@ -181,7 +188,7 @@ export function installTreeKeyboard(tree: HTMLElement): void {
 
   // Replace any handlers from a previous plugin load before binding fresh ones.
   const el = tree as KbdTreeEl;
-  unbind(el);
+  detachTreeKeyboard(el);
 
   let spaceArmed: HTMLElement | null = null;
 
