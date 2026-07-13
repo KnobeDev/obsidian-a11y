@@ -17,7 +17,8 @@
 /* --- Visible focus (SC 2.4.7) --------------------------------------------
    Obsidian ships a global `:focus { outline: none }`. Restore a clear,
    accent-colored ring on keyboard focus for every interactive surface. */
-body.a11y-focus-ring *:focus-visible {
+body.a11y-focus-ring *:focus-visible,
+body.a11y-focus-ring.is-mobile *:focus {
   outline: 2px solid var(--interactive-accent);
   outline-offset: 1px;
   border-radius: var(--radius-s, 4px);
@@ -36,7 +37,21 @@ body.a11y-focus-ring :is(
   [role="tab"],
   [role="option"],
   [role="switch"]
-):focus-visible {
+):focus-visible,
+body.a11y-focus-ring.is-mobile :is(
+  .clickable-icon,
+  .nav-file-title,
+  .nav-folder-title,
+  .workspace-tab-header,
+  .vertical-tab-nav-item,
+  .suggestion-item,
+  .menu-item,
+  .status-bar-item.mod-clickable,
+  [role="button"],
+  [role="tab"],
+  [role="option"],
+  [role="switch"]
+):focus {
   outline: 2px solid var(--interactive-accent);
   outline-offset: -2px;
   box-shadow: 0 0 0 1px var(--background-primary);
