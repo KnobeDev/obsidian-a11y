@@ -24,10 +24,22 @@ export default class A11yEnhancerPlugin extends Plugin {
   async onload(): Promise<void> {
     await this.loadSettings();
     console.info("[a11y-enhancer] loaded");
-    this.applyBodyFlags(document);
     this.addSettingTab(new A11ySettingTab(this.app, this));
 
-    // Main window now; pop-out windows as they open.
+    if (document.body) {
+      this.initializePlugin();
+    } else {
+      const checkBody = setInterval(() => {
+        if (document.body) {
+          clearInterval(checkBody);
+          this.initializePlugin();
+        }
+      }, 50);
+    }
+  }
+
+  private initializePlugin(): void {
+    this.applyBodyFlags(document);
     this.attach(document);
     this.registerEvent(
       this.app.workspace.on("window-open", (_win: unknown, win: Window) => {
@@ -61,6 +73,7 @@ export default class A11yEnhancerPlugin extends Plugin {
 
   private attach(doc: Document): void {
     if (this.contexts.has(doc)) return;
+    if (!doc.body) return;
     this.applyBodyFlags(doc);
     const announcer = new Announcer(doc);
     if (this.settings.announcer) announcer.mount();
@@ -132,13 +145,16 @@ export default class A11yEnhancerPlugin extends Plugin {
   /** CSS feature flags are toggled via body classes that styles.css keys off. */
   applyBodyFlags(doc: Document): void {
     const b = doc.body;
+    if (!b) return;
     b.classList.toggle("a11y-focus-ring", this.settings.focusRing);
     b.classList.toggle("a11y-reduced-motion", this.settings.reducedMotion);
     b.classList.toggle("a11y-contrast-boost", this.settings.contrastBoost);
   }
 
   private clearBodyFlags(doc: Document): void {
-    doc.body.classList.remove(
+    const b = doc.body;
+    if (!b) return;
+    b.classList.remove(
       "a11y-focus-ring",
       "a11y-reduced-motion",
       "a11y-contrast-boost",

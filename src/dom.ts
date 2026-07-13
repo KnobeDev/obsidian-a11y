@@ -106,9 +106,9 @@ export function isDrawerOpen(drawer: HTMLElement): boolean {
   
   const isLeft = drawer.classList.contains("mod-left");
   if (isLeft) {
-    return rect.right > 0;
+    return rect.right > 10;
   } else {
     const win = drawer.ownerDocument.defaultView ?? window;
-    return rect.left < win.innerWidth;
+    return rect.left < win.innerWidth - 10;
   }
 }

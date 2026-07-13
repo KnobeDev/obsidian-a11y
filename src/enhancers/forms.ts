@@ -16,6 +16,7 @@ const CONTROL_SELECTOR =
   'input, select, textarea, .checkbox-container, .dropdown, .slider, [role="button"]';
 
 export function enhanceForms(doc: Document): void {
+  if (!doc.body) return;
   doc.querySelectorAll<HTMLElement>(".setting-item").forEach((item) => {
     const nameEl = item.querySelector<HTMLElement>(".setting-item-name");
     const descEl = item.querySelector<HTMLElement>(".setting-item-description");

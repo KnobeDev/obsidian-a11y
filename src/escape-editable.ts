@@ -52,7 +52,7 @@ export function installEscapeEditable(
   app: App,
   isEnabled: () => boolean,
 ): void {
-  if (!once(doc.body, "EscEditable")) return;
+  if (!doc.body || !once(doc.body, "EscEditable")) return;
 
   // Capture phase: Obsidian/CodeMirror consume Escape before it reaches the
   // document in the bubble phase, so we must look first. We defer (do nothing,

@@ -86,6 +86,7 @@ function ensureName(el: HTMLElement): void {
 }
 
 export function enhanceChrome(doc: Document): void {
+  if (!doc.body) return;
   // Every clickable-icon that is not already a native button → operable button.
   doc.querySelectorAll<HTMLElement>(".clickable-icon").forEach((el) => {
     if (el.tagName === "BUTTON") return;

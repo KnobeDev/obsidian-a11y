@@ -213,6 +213,7 @@ function enhanceTrees(doc: Document): void {
 }
 
 export function enhanceStructure(doc: Document): void {
+  if (!doc.body) return;
   enhanceTabs(doc);
   enhanceTrees(doc);
 }

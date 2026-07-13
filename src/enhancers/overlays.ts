@@ -282,6 +282,7 @@ function enhanceMenus(doc: Document): void {
 }
 
 export function enhanceOverlays(doc: Document): void {
+  if (!doc.body) return;
   enhanceModals(doc);
   enhanceSettingsNav(doc);
   enhanceSuggest(doc);

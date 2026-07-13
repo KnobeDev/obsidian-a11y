@@ -17,6 +17,7 @@ export class Announcer {
   }
 
   mount(): void {
+    if (!this.doc.body) return;
     if (this.doc.getElementById(REGION_ID)) return;
     const el = this.doc.createElement("div");
     el.id = REGION_ID;
