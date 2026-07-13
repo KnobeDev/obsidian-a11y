@@ -112,12 +112,12 @@ function enhanceModals(doc: Document): void {
 
 // Keep exactly one nav item in the tab order (roving), preferring whatever is
 // already focused, then the active section, then the first item.
-function ensureTablistRoving(nav: HTMLElement): void {
+function ensureTablistRoving(nav: HTMLElement, mobileSupportActive = false): void {
   const items = Array.from(
     nav.querySelectorAll<HTMLElement>(".vertical-tab-nav-item"),
   ).filter(isVisible);
   if (!items.length) return;
-  if (Platform.isMobile) {
+  if (Platform.isMobile && mobileSupportActive) {
     items.forEach((i) => setAttr(i, "tabindex", "0"));
     return;
   }
@@ -144,8 +144,8 @@ function focusSectionContent(navItem: HTMLElement): void {
 // activation: Up/Down/Home/End move focus only; Enter (immediate) or Space
 // (on key-up, cancellable) switches the section AND drops focus into its
 // content — so arrowing never activates a section just by passing over it.
-function installVerticalTabKeys(nav: HTMLElement): void {
-  if (Platform.isMobile || !once(nav, "VTabKeys")) return;
+function installVerticalTabKeys(nav: HTMLElement, mobileSupportActive = false): void {
+  if ((Platform.isMobile && mobileSupportActive) || !once(nav, "VTabKeys")) return;
   let spaceArmed: HTMLElement | null = null;
   const items = () =>
     Array.from(nav.querySelectorAll<HTMLElement>(".vertical-tab-nav-item")).filter(
@@ -194,14 +194,14 @@ function installVerticalTabKeys(nav: HTMLElement): void {
   nav.addEventListener("focusout", () => { spaceArmed = null; });
 }
 
-function enhanceSettingsNav(doc: Document): void {
+function enhanceSettingsNav(doc: Document, mobileSupportActive = false): void {
   // .vertical-tab-header is the direct container of the nav items; tag only it
   // as the tablist (tagging the outer group too would nest tablists).
   doc.querySelectorAll<HTMLElement>(".vertical-tab-header").forEach((h) => {
     setRoleIfAbsent(h, "tablist");
     setAttr(h, "aria-orientation", "vertical");
-    installVerticalTabKeys(h);
-    ensureTablistRoving(h);
+    installVerticalTabKeys(h, mobileSupportActive);
+    ensureTablistRoving(h, mobileSupportActive);
   });
 
   doc.querySelectorAll<HTMLElement>(".vertical-tab-nav-item").forEach((item) => {
@@ -281,10 +281,10 @@ function enhanceMenus(doc: Document): void {
   });
 }
 
-export function enhanceOverlays(doc: Document): void {
+export function enhanceOverlays(doc: Document, mobileSupportActive = false): void {
   if (!doc.body) return;
   enhanceModals(doc);
-  enhanceSettingsNav(doc);
+  enhanceSettingsNav(doc, mobileSupportActive);
   enhanceSuggest(doc);
   enhanceMenus(doc);
 }

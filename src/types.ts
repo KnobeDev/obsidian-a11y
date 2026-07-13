@@ -19,6 +19,8 @@ export interface A11ySettings {
   escapeEditables: boolean;
   /** Open markdown documents in Reading view; editing stays opt-in via the edit toggle. */
   readingDefault: boolean;
+  /** Experimental touch and screen-reader optimizations for mobile layouts. */
+  mobileSupport: boolean;
 }
 
 export const DEFAULT_SETTINGS: A11ySettings = {
@@ -32,4 +34,5 @@ export const DEFAULT_SETTINGS: A11ySettings = {
   reducedMotion: true,
   escapeEditables: true,
   readingDefault: true,
+  mobileSupport: false,
 };

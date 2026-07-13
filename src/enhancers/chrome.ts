@@ -85,7 +85,7 @@ function ensureName(el: HTMLElement): void {
   if (name) setAttr(el, "aria-label", name);
 }
 
-export function enhanceChrome(doc: Document): void {
+export function enhanceChrome(doc: Document, mobileSupportActive = false): void {
   if (!doc.body) return;
   // Every clickable-icon that is not already a native button → operable button.
   doc.querySelectorAll<HTMLElement>(".clickable-icon").forEach((el) => {
@@ -106,10 +106,10 @@ export function enhanceChrome(doc: Document): void {
   const body = doc.body;
   const leftDrawer = doc.querySelector<HTMLElement>(".workspace-drawer.mod-left");
   const rightDrawer = doc.querySelector<HTMLElement>(".workspace-drawer.mod-right");
-  const leftOpen = Platform.isMobile
+  const leftOpen = (Platform.isMobile && mobileSupportActive)
     ? (!!leftDrawer && isDrawerOpen(leftDrawer))
     : body.classList.contains("is-left-sidedock-open");
-  const rightOpen = Platform.isMobile
+  const rightOpen = (Platform.isMobile && mobileSupportActive)
     ? (!!rightDrawer && isDrawerOpen(rightDrawer))
     : body.classList.contains("is-right-sidedock-open");
 
@@ -125,27 +125,29 @@ export function enhanceChrome(doc: Document): void {
   if (ribbon) setRoleIfAbsent(ribbon, "toolbar");
 
   // Mobile navigation bottom bar / toolbar.
-  const mobileNavbar = doc.querySelector<HTMLElement>(".mobile-navbar");
-  if (mobileNavbar) {
-    setRoleIfAbsent(mobileNavbar, "toolbar");
-    if (!mobileNavbar.hasAttribute("aria-label")) {
-      setAttr(mobileNavbar, "aria-label", "Mobile navigation toolbar");
+  if (mobileSupportActive && Platform.isMobile) {
+    const mobileNavbar = doc.querySelector<HTMLElement>(".mobile-navbar");
+    if (mobileNavbar) {
+      setRoleIfAbsent(mobileNavbar, "toolbar");
+      if (!mobileNavbar.hasAttribute("aria-label")) {
+        setAttr(mobileNavbar, "aria-label", "Mobile navigation toolbar");
+      }
     }
+
+    // Mobile navbar items / action buttons.
+    doc.querySelectorAll<HTMLElement>(".mobile-navbar-action, .mobile-navbar-button, .mobile-navbar-item").forEach((el) => {
+      if (el.tagName === "BUTTON") return;
+      makeActivatable(el, { role: "button" });
+      ensureName(el);
+    });
+
+    // Mobile side panel drawers.
+    doc.querySelectorAll<HTMLElement>(".workspace-drawer").forEach((el) => {
+      setRoleIfAbsent(el, "dialog");
+      if (!el.hasAttribute("aria-label")) {
+        const isRight = el.classList.contains("mod-right");
+        setAttr(el, "aria-label", isRight ? "Right sidebar drawer" : "Left sidebar drawer");
+      }
+    });
   }
-
-  // Mobile navbar items / action buttons.
-  doc.querySelectorAll<HTMLElement>(".mobile-navbar-action, .mobile-navbar-button, .mobile-navbar-item").forEach((el) => {
-    if (el.tagName === "BUTTON") return;
-    makeActivatable(el, { role: "button" });
-    ensureName(el);
-  });
-
-  // Mobile side panel drawers.
-  doc.querySelectorAll<HTMLElement>(".workspace-drawer").forEach((el) => {
-    setRoleIfAbsent(el, "dialog");
-    if (!el.hasAttribute("aria-label")) {
-      const isRight = el.classList.contains("mod-right");
-      setAttr(el, "aria-label", isRight ? "Right sidebar drawer" : "Left sidebar drawer");
-    }
-  });
 }

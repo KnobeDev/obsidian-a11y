@@ -18,7 +18,7 @@
    Obsidian ships a global `:focus { outline: none }`. Restore a clear,
    accent-colored ring on keyboard focus for every interactive surface. */
 body.a11y-focus-ring *:focus-visible,
-body.a11y-focus-ring.is-mobile *:focus {
+body.a11y-focus-ring.a11y-mobile-support.is-mobile *:focus {
   outline: 2px solid var(--interactive-accent);
   outline-offset: 1px;
   border-radius: var(--radius-s, 4px);
@@ -38,7 +38,7 @@ body.a11y-focus-ring :is(
   [role="option"],
   [role="switch"]
 ):focus-visible,
-body.a11y-focus-ring.is-mobile :is(
+body.a11y-focus-ring.a11y-mobile-support.is-mobile :is(
   .clickable-icon,
   .nav-file-title,
   .nav-folder-title,

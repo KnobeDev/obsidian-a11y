@@ -176,8 +176,8 @@ function move(tree: HTMLElement, target: HTMLElement | null | undefined): void {
   target.scrollIntoView({ block: "nearest" });
 }
 
-export function installTreeKeyboard(tree: HTMLElement): void {
-  if (Platform.isMobile) {
+export function installTreeKeyboard(tree: HTMLElement, mobileSupportActive = false): void {
+  if (Platform.isMobile && mobileSupportActive) {
     if (!tree.hasAttribute("aria-label")) setAttr(tree, "aria-label", labelForTree(tree));
     tree
       .querySelectorAll<HTMLElement>(TREEITEM)

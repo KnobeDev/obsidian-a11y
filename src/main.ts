@@ -98,9 +98,12 @@ export default class A11yEnhancerPlugin extends Plugin {
     const leftDrawer = doc.querySelector<HTMLElement>(".workspace-drawer.mod-left");
     const rightDrawer = doc.querySelector<HTMLElement>(".workspace-drawer.mod-right");
 
-    const leftOpen = !!leftDrawer && isDrawerOpen(leftDrawer);
-    const rightOpen = !!rightDrawer && isDrawerOpen(rightDrawer);
-    const drawerOpen = leftOpen || rightOpen;
+    // The backdrop overlay is dynamically added to the DOM only when a drawer is open on mobile.
+    const backdrop = doc.querySelector(".workspace-drawer-backdrop");
+    const drawerOpen = !!backdrop;
+
+    const leftOpen = drawerOpen && !!leftDrawer && isDrawerOpen(leftDrawer);
+    const rightOpen = drawerOpen && !!rightDrawer && isDrawerOpen(rightDrawer);
 
     const bgSelectors = [
       ".workspace-split.mod-root",
@@ -149,12 +152,12 @@ export default class A11yEnhancerPlugin extends Plugin {
   /** Idempotent pass over a document; run by the observer on every change. */
   private sweep(doc: Document, announcer: Announcer): void {
     const s = this.settings;
-    if (Platform.isMobile) {
+    if (s.mobileSupport && Platform.isMobile) {
       this.containMobileDrawers(doc);
     }
-    if (s.chrome) enhanceChrome(doc);
-    if (s.structure) enhanceStructure(doc);
-    if (s.overlays) enhanceOverlays(doc);
+    if (s.chrome) enhanceChrome(doc, s.mobileSupport);
+    if (s.structure) enhanceStructure(doc, s.mobileSupport);
+    if (s.overlays) enhanceOverlays(doc, s.mobileSupport);
     if (s.forms) enhanceForms(doc);
     if (s.announcer) announcer.sweepNotices();
   }
@@ -171,6 +174,7 @@ export default class A11yEnhancerPlugin extends Plugin {
     b.classList.toggle("a11y-focus-ring", this.settings.focusRing);
     b.classList.toggle("a11y-reduced-motion", this.settings.reducedMotion);
     b.classList.toggle("a11y-contrast-boost", this.settings.contrastBoost);
+    b.classList.toggle("a11y-mobile-support", this.settings.mobileSupport);
   }
 
   private clearBodyFlags(doc: Document): void {
@@ -180,6 +184,7 @@ export default class A11yEnhancerPlugin extends Plugin {
       "a11y-focus-ring",
       "a11y-reduced-motion",
       "a11y-contrast-boost",
+      "a11y-mobile-support",
     );
   }
 

@@ -34,7 +34,7 @@ function isHierarchicalView(el: Element): boolean {
   return type !== null && HIERARCHICAL_VIEWS.has(type);
 }
 
-function enhanceTabs(doc: Document): void {
+function enhanceTabs(doc: Document, mobileSupportActive = false): void {
   doc
     .querySelectorAll<HTMLElement>(".workspace-tab-header-container")
     .forEach((container) => setRoleIfAbsent(container, "tablist"));
@@ -43,7 +43,8 @@ function enhanceTabs(doc: Document): void {
     const active =
       tab.classList.contains("is-active") || tab.classList.contains("mod-active");
     // On mobile, keep all tabs focusable so they are not skipped by screen reader swipes.
-    const tabindex = Platform.isMobile ? 0 : (active ? 0 : -1);
+    const isMobile = mobileSupportActive && Platform.isMobile;
+    const tabindex = isMobile ? 0 : (active ? 0 : -1);
     makeActivatable(tab, { role: "tab", tabindex });
     setAttr(tab, "aria-selected", String(active));
 
@@ -53,7 +54,7 @@ function enhanceTabs(doc: Document): void {
     // Roving arrow navigation. Manual activation: arrows move focus only; the
     // user presses Enter/Space (via makeActivatable) to actually switch tabs, so
     // arrowing past a tab never triggers a document load. Only register on desktop.
-    if (!Platform.isMobile && once(tab, "TabArrows")) {
+    if (!isMobile && once(tab, "TabArrows")) {
       tab.addEventListener("keydown", (e: KeyboardEvent) => {
         if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
         const group = Array.from(
@@ -195,7 +196,7 @@ function makeFlatContainer(el: HTMLElement): void {
   detachTreeKeyboard(el);
 }
 
-function enhanceTrees(doc: Document): void {
+function enhanceTrees(doc: Document, mobileSupportActive = false): void {
   doc.querySelectorAll<HTMLElement>(".tree-item").forEach((item) => {
     if (isHierarchicalView(item)) enhanceTreeItem(item);
     else enhanceFlatItem(item);
@@ -207,13 +208,13 @@ function enhanceTrees(doc: Document): void {
   // per-item pass above never reached — is demoted here so it is never re-armed
   // with tree semantics.
   doc.querySelectorAll<HTMLElement>('[role="tree"]').forEach((tree) => {
-    if (isHierarchicalView(tree)) installTreeKeyboard(tree);
+    if (isHierarchicalView(tree)) installTreeKeyboard(tree, mobileSupportActive);
     else makeFlatContainer(tree);
   });
 }
 
-export function enhanceStructure(doc: Document): void {
+export function enhanceStructure(doc: Document, mobileSupportActive = false): void {
   if (!doc.body) return;
-  enhanceTabs(doc);
-  enhanceTrees(doc);
+  enhanceTabs(doc, mobileSupportActive);
+  enhanceTrees(doc, mobileSupportActive);
 }

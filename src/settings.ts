@@ -17,6 +17,7 @@ const TOGGLES: Toggle[] = [
   { key: "announcer", name: "Announce notices", desc: "Mirror toast notices into a screen-reader live region." },
   { key: "escapeEditables", name: "Escape from editors", desc: "Press Escape in the editor or a text field to move focus back to navigable controls." },
   { key: "readingDefault", name: "Open notes in Reading view", desc: "Markdown opens in Reading view; editing stays opt-in via the note's edit toggle." },
+  { key: "mobileSupport", name: "Mobile layout support", desc: "Experimental touch and screen-reader optimizations for mobile layouts (side drawer containment, bottom navbar toolbar roles, and TalkBack focus rings). Off by default." },
   { key: "reducedMotion", name: "Honor reduced motion", desc: "Suppress app animations when your OS requests reduced motion." },
   { key: "contrastBoost", name: "Contrast boost (opinionated)", desc: "Override default-theme tokens that fail WCAG contrast." },
 ];
