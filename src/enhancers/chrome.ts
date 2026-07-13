@@ -5,7 +5,8 @@
 // ship with NO accessible name, so once they become role="button" a screen
 // reader announces a bare "button". We derive a name from the lucide icon class.
 
-import { makeActivatable, setAttr, setRoleIfAbsent, visibleText } from "../dom";
+import { Platform } from "obsidian";
+import { makeActivatable, setAttr, setRoleIfAbsent, visibleText, isDrawerOpen } from "../dom";
 
 /** Known icon → label. Keys are matched against the svg's class tokens. */
 const ICON_LABELS: Record<string, string> = {
@@ -100,10 +101,17 @@ export function enhanceChrome(doc: Document): void {
       ensureName(el);
     });
 
-  // Sidebar collapse toggles: expose open/closed state from the body classes.
+  // Sidebar collapse toggles: expose open/closed state from the body classes (or mobile drawer rects).
   const body = doc.body;
-  const leftOpen = body.classList.contains("is-left-sidedock-open");
-  const rightOpen = body.classList.contains("is-right-sidedock-open");
+  const leftDrawer = doc.querySelector<HTMLElement>(".workspace-drawer.mod-left");
+  const rightDrawer = doc.querySelector<HTMLElement>(".workspace-drawer.mod-right");
+  const leftOpen = Platform.isMobile
+    ? (!!leftDrawer && isDrawerOpen(leftDrawer))
+    : body.classList.contains("is-left-sidedock-open");
+  const rightOpen = Platform.isMobile
+    ? (!!rightDrawer && isDrawerOpen(rightDrawer))
+    : body.classList.contains("is-right-sidedock-open");
+
   doc.querySelectorAll<HTMLElement>(".sidebar-toggle-button").forEach((el) => {
     makeActivatable(el, { role: "button" });
     ensureName(el);

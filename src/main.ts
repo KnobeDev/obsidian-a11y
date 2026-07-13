@@ -10,6 +10,7 @@ import { A11ySettingTab } from "./settings";
 import { installEscapeEditable } from "./escape-editable";
 import { forceActiveReading } from "./reading-mode";
 import { uninstallTreeKeyboard } from "./enhancers/tree-keyboard";
+import { isDrawerOpen } from "./dom";
 
 interface DocContext {
   observer: A11yObserver;
@@ -81,9 +82,11 @@ export default class A11yEnhancerPlugin extends Plugin {
 
   /** Hide background workspace content when mobile side drawers are open. */
   private containMobileDrawers(doc: Document): void {
-    const body = doc.body;
-    const leftOpen = body.classList.contains("is-left-sidedock-open");
-    const rightOpen = body.classList.contains("is-right-sidedock-open");
+    const leftDrawer = doc.querySelector<HTMLElement>(".workspace-drawer.mod-left");
+    const rightDrawer = doc.querySelector<HTMLElement>(".workspace-drawer.mod-right");
+
+    const leftOpen = !!leftDrawer && isDrawerOpen(leftDrawer);
+    const rightOpen = !!rightDrawer && isDrawerOpen(rightDrawer);
     const drawerOpen = leftOpen || rightOpen;
 
     const bgSelectors = [

@@ -98,3 +98,17 @@ export function visibleText(el: Element | null): string {
 export function isVisible(el: HTMLElement): boolean {
   return el.getClientRects().length > 0;
 }
+
+/** Detect if a mobile side drawer is visually open by measuring its bounding rect. */
+export function isDrawerOpen(drawer: HTMLElement): boolean {
+  const rect = drawer.getBoundingClientRect();
+  if (rect.width === 0 || rect.height === 0) return false;
+  
+  const isLeft = drawer.classList.contains("mod-left");
+  if (isLeft) {
+    return rect.right > 0;
+  } else {
+    const win = drawer.ownerDocument.defaultView ?? window;
+    return rect.left < win.innerWidth;
+  }
+}
