@@ -122,6 +122,28 @@ export default class A11yEnhancerPlugin extends Plugin {
         }
       });
     });
+
+    // Toggle aria-hidden and aria-modal on left/right drawers based on their open state.
+    // If a drawer is closed, it must be hidden from screen readers and not act as a modal.
+    if (leftDrawer) {
+      if (leftOpen) {
+        leftDrawer.removeAttribute("aria-hidden");
+        leftDrawer.setAttribute("aria-modal", "true");
+      } else {
+        leftDrawer.setAttribute("aria-hidden", "true");
+        leftDrawer.removeAttribute("aria-modal");
+      }
+    }
+
+    if (rightDrawer) {
+      if (rightOpen) {
+        rightDrawer.removeAttribute("aria-hidden");
+        rightDrawer.setAttribute("aria-modal", "true");
+      } else {
+        rightDrawer.setAttribute("aria-hidden", "true");
+        rightDrawer.removeAttribute("aria-modal");
+      }
+    }
   }
 
   /** Idempotent pass over a document; run by the observer on every change. */

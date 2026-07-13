@@ -143,7 +143,6 @@ export function enhanceChrome(doc: Document): void {
   // Mobile side panel drawers.
   doc.querySelectorAll<HTMLElement>(".workspace-drawer").forEach((el) => {
     setRoleIfAbsent(el, "dialog");
-    setAttr(el, "aria-modal", "true");
     if (!el.hasAttribute("aria-label")) {
       const isRight = el.classList.contains("mod-right");
       setAttr(el, "aria-label", isRight ? "Right sidebar drawer" : "Left sidebar drawer");
