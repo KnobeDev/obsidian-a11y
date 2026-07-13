@@ -29,6 +29,7 @@
 //   Enter              activate immediately (open file / toggle folder)
 //   Space              activate on key-up, cancellable by moving focus first
 
+import { Platform } from "obsidian";
 import { ensureId, isVisible, removeAttr, setAttr } from "../dom";
 
 const TREEITEM = '[role="treeitem"]';
@@ -176,6 +177,15 @@ function move(tree: HTMLElement, target: HTMLElement | null | undefined): void {
 }
 
 export function installTreeKeyboard(tree: HTMLElement): void {
+  if (Platform.isMobile) {
+    if (!tree.hasAttribute("aria-label")) setAttr(tree, "aria-label", labelForTree(tree));
+    tree
+      .querySelectorAll<HTMLElement>(TREEITEM)
+      .forEach((t) => removeAttr(t, "tabindex"));
+    detachTreeKeyboard(tree as KbdTreeEl);
+    return;
+  }
+
   // The container owns focus; rows are never tab stops in this model.
   setAttr(tree, "tabindex", "0");
   if (!tree.hasAttribute("aria-label")) setAttr(tree, "aria-label", labelForTree(tree));
@@ -189,8 +199,9 @@ export function installTreeKeyboard(tree: HTMLElement): void {
   // Replace any handlers from a previous plugin load before binding fresh ones.
   const el = tree as KbdTreeEl;
   detachTreeKeyboard(el);
-
+  
   let spaceArmed: HTMLElement | null = null;
+
 
   const onKeydown = (e: KeyboardEvent): void => {
     const t = e.target as HTMLElement;

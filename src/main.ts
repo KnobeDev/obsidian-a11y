@@ -1,4 +1,4 @@
-import { Plugin } from "obsidian";
+import { Plugin, Platform } from "obsidian";
 import { A11ySettings, DEFAULT_SETTINGS } from "./types";
 import { A11yObserver } from "./observer";
 import { Announcer } from "./announcer";
@@ -79,9 +79,41 @@ export default class A11yEnhancerPlugin extends Plugin {
     this.contexts.delete(doc);
   }
 
+  /** Hide background workspace content when mobile side drawers are open. */
+  private containMobileDrawers(doc: Document): void {
+    const body = doc.body;
+    const leftOpen = body.classList.contains("is-left-sidedock-open");
+    const rightOpen = body.classList.contains("is-right-sidedock-open");
+    const drawerOpen = leftOpen || rightOpen;
+
+    const bgSelectors = [
+      ".workspace-split.mod-root",
+      ".mobile-navbar",
+      ".workspace-ribbon",
+      ".status-bar"
+    ];
+
+    bgSelectors.forEach((selector) => {
+      doc.querySelectorAll<HTMLElement>(selector).forEach((el) => {
+        if (drawerOpen) {
+          if (el.getAttribute("aria-hidden") !== "true") {
+            el.setAttribute("aria-hidden", "true");
+          }
+        } else {
+          if (el.getAttribute("aria-hidden") === "true") {
+            el.removeAttribute("aria-hidden");
+          }
+        }
+      });
+    });
+  }
+
   /** Idempotent pass over a document; run by the observer on every change. */
   private sweep(doc: Document, announcer: Announcer): void {
     const s = this.settings;
+    if (Platform.isMobile) {
+      this.containMobileDrawers(doc);
+    }
     if (s.chrome) enhanceChrome(doc);
     if (s.structure) enhanceStructure(doc);
     if (s.overlays) enhanceOverlays(doc);

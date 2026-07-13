@@ -15,6 +15,20 @@ const ICON_LABELS: Record<string, string> = {
   "lucide-bell": "Notifications",
   "lucide-more-horizontal": "More options",
   "lucide-more-vertical": "More options",
+  "lucide-menu": "Menu",
+  "lucide-search": "Search",
+  "lucide-plus": "New note",
+  "lucide-file-text": "Note",
+  "lucide-file": "Note",
+  "lucide-folder": "Folder",
+  "lucide-folder-open": "Folder",
+  "lucide-edit": "Edit",
+  "lucide-book-open": "Reading view",
+  "lucide-chevron-right": "Expand",
+  "lucide-chevron-left": "Collapse",
+  "lucide-chevron-down": "Expand",
+  "lucide-chevron-up": "Collapse",
+  "lucide-x": "Close",
 };
 
 /** Does the element already expose an accessible name? */
@@ -100,4 +114,30 @@ export function enhanceChrome(doc: Document): void {
   // The whole left ribbon is a toolbar of actions.
   const ribbon = doc.querySelector<HTMLElement>(".side-dock-ribbon, .workspace-ribbon");
   if (ribbon) setRoleIfAbsent(ribbon, "toolbar");
+
+  // Mobile navigation bottom bar / toolbar.
+  const mobileNavbar = doc.querySelector<HTMLElement>(".mobile-navbar");
+  if (mobileNavbar) {
+    setRoleIfAbsent(mobileNavbar, "toolbar");
+    if (!mobileNavbar.hasAttribute("aria-label")) {
+      setAttr(mobileNavbar, "aria-label", "Mobile navigation toolbar");
+    }
+  }
+
+  // Mobile navbar items / action buttons.
+  doc.querySelectorAll<HTMLElement>(".mobile-navbar-action, .mobile-navbar-button, .mobile-navbar-item").forEach((el) => {
+    if (el.tagName === "BUTTON") return;
+    makeActivatable(el, { role: "button" });
+    ensureName(el);
+  });
+
+  // Mobile side panel drawers.
+  doc.querySelectorAll<HTMLElement>(".workspace-drawer").forEach((el) => {
+    setRoleIfAbsent(el, "dialog");
+    setAttr(el, "aria-modal", "true");
+    if (!el.hasAttribute("aria-label")) {
+      const isRight = el.classList.contains("mod-right");
+      setAttr(el, "aria-label", isRight ? "Right sidebar drawer" : "Left sidebar drawer");
+    }
+  });
 }

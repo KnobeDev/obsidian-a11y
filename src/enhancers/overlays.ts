@@ -2,6 +2,7 @@
 // navigation (keyboard-operable tabs), the command palette / quick switcher /
 // suggestions (combobox + listbox), and menus.
 
+import { Platform } from "obsidian";
 import {
   ensureId,
   isVisible,
@@ -116,6 +117,10 @@ function ensureTablistRoving(nav: HTMLElement): void {
     nav.querySelectorAll<HTMLElement>(".vertical-tab-nav-item"),
   ).filter(isVisible);
   if (!items.length) return;
+  if (Platform.isMobile) {
+    items.forEach((i) => setAttr(i, "tabindex", "0"));
+    return;
+  }
   const cur = items.find((i) => i.getAttribute("tabindex") === "0");
   if (cur) {
     items.forEach((i) => { if (i !== cur) setAttr(i, "tabindex", "-1"); });
@@ -140,7 +145,7 @@ function focusSectionContent(navItem: HTMLElement): void {
 // (on key-up, cancellable) switches the section AND drops focus into its
 // content — so arrowing never activates a section just by passing over it.
 function installVerticalTabKeys(nav: HTMLElement): void {
-  if (!once(nav, "VTabKeys")) return;
+  if (Platform.isMobile || !once(nav, "VTabKeys")) return;
   let spaceArmed: HTMLElement | null = null;
   const items = () =>
     Array.from(nav.querySelectorAll<HTMLElement>(".vertical-tab-nav-item")).filter(

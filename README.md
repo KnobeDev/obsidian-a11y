@@ -39,6 +39,15 @@ Each toggle in **Settings → Accessibility Enhancer** maps to an audited findin
 | Honor reduced motion | 2.3.3 | Suppresses animations when the OS asks |
 | Contrast boost (opt-in) | 1.4.3, 1.4.11 | Overrides default-theme tokens that fail contrast |
 
+## Android / Mobile Support
+
+The plugin includes mobile-specific accessibility retrofits that resolve major screen reader (TalkBack/VoiceOver) and touch exploration issues on Android and iOS:
+
+1. **Explore-by-Touch Compatibility**: Clickable `<div>` controls in the mobile navbar, action drawers, and settings screens are assigned explicit interactive roles (e.g., `role="button"`) and `tabindex="0"`, making them discoverable by swipe gestures.
+2. **Focus Containment (`aria-hidden`)**: Opening the left or right side drawer automatically applies `aria-hidden="true"` to background content (like the editor workspace and bottom navbar), containing TalkBack swipe focus within the active drawer.
+3. **Common Icon Translation**: Dozens of mobile-only icons (Menu, Search, Plus, folder chevron toggles, edit state, reading mode, close button) are mapped to meaningful screen reader labels instead of being read out as a generic nameless "button".
+4. **Desktop Navigation Bypass**: Roving tab index and keyboard arrow-key captures are automatically bypassed on mobile devices to prevent any interference with native screen reader swipe gestures.
+
 ## Architecture
 
 ```

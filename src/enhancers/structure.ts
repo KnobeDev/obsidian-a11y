@@ -1,6 +1,7 @@
 // Audit 02 — document structure: workspace tabs (tablist/tab) and the file /
 // outline trees (tree/treeitem/group). State is otherwise class-only.
 
+import { Platform } from "obsidian";
 import {
   hideFromAT,
   makeActivatable,
@@ -41,7 +42,9 @@ function enhanceTabs(doc: Document): void {
   doc.querySelectorAll<HTMLElement>(".workspace-tab-header").forEach((tab) => {
     const active =
       tab.classList.contains("is-active") || tab.classList.contains("mod-active");
-    makeActivatable(tab, { role: "tab", tabindex: active ? 0 : -1 });
+    // On mobile, keep all tabs focusable so they are not skipped by screen reader swipes.
+    const tabindex = Platform.isMobile ? 0 : (active ? 0 : -1);
+    makeActivatable(tab, { role: "tab", tabindex });
     setAttr(tab, "aria-selected", String(active));
 
     const title = visibleText(tab.querySelector(".workspace-tab-header-inner-title"));
@@ -49,8 +52,8 @@ function enhanceTabs(doc: Document): void {
 
     // Roving arrow navigation. Manual activation: arrows move focus only; the
     // user presses Enter/Space (via makeActivatable) to actually switch tabs, so
-    // arrowing past a tab never triggers a document load.
-    if (once(tab, "TabArrows")) {
+    // arrowing past a tab never triggers a document load. Only register on desktop.
+    if (!Platform.isMobile && once(tab, "TabArrows")) {
       tab.addEventListener("keydown", (e: KeyboardEvent) => {
         if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
         const group = Array.from(
