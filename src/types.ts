@@ -11,6 +11,8 @@ export interface A11ySettings {
   focusRing: boolean;
   /** Mirror Notices into a polite live region. */
   announcer: boolean;
+  /** Announce the editor's current line number as the caret moves between lines. */
+  lineAnnounce: boolean;
   /** Override default-theme color tokens that fail contrast. Opinionated; off by default. */
   contrastBoost: boolean;
   /** Honor prefers-reduced-motion app-wide. */
@@ -30,6 +32,7 @@ export const DEFAULT_SETTINGS: A11ySettings = {
   forms: true,
   focusRing: true,
   announcer: true,
+  lineAnnounce: true,
   contrastBoost: false,
   reducedMotion: true,
   escapeEditables: true,

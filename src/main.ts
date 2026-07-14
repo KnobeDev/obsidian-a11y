@@ -11,6 +11,7 @@ import { installEscapeEditable } from "./escape-editable";
 import { forceActiveReading } from "./reading-mode";
 import { uninstallTreeKeyboard } from "./enhancers/tree-keyboard";
 import { isDrawerOpen } from "./dom";
+import { lineAnnouncer } from "./line-announce";
 
 interface DocContext {
   observer: A11yObserver;
@@ -59,6 +60,26 @@ export default class A11yEnhancerPlugin extends Plugin {
       this.app.workspace.on("file-open", () => this.enforceReadingMode()),
     );
     this.app.workspace.onLayoutReady(() => this.enforceReadingMode());
+
+    // Announce the editor's current line as the caret moves. The extension
+    // self-gates on the setting, so it is always registered; toggling the
+    // setting takes effect without reconfiguring the editor.
+    this.registerEditorExtension(
+      lineAnnouncer(
+        () => this.settings.lineAnnounce,
+        (message, doc) => this.announceInDoc(doc, message),
+      ),
+    );
+  }
+
+  /** Speak a message through a given document's live region, if attached. */
+  private announceInDoc(doc: Document, message: string): void {
+    this.contexts.get(doc)?.announcer.say(message);
+  }
+
+  /** The live region backs both notice mirroring and line announcements. */
+  private wantsLiveRegion(): boolean {
+    return this.settings.announcer || this.settings.lineAnnounce;
   }
 
   /** Default the active markdown view to Reading view when the setting is on. */
@@ -76,7 +97,7 @@ export default class A11yEnhancerPlugin extends Plugin {
     if (!doc.body) return;
     this.applyBodyFlags(doc);
     const announcer = new Announcer(doc);
-    if (this.settings.announcer) announcer.mount();
+    if (this.wantsLiveRegion()) announcer.mount();
     const observer = new A11yObserver(doc, (d) => this.sweep(d, announcer));
     observer.start();
     installEscapeEditable(doc, this.app, () => this.settings.escapeEditables);
@@ -188,10 +209,10 @@ export default class A11yEnhancerPlugin extends Plugin {
     );
   }
 
-  /** Reflect the announcer setting across all attached documents. */
+  /** Reflect the live-region settings (notices + line announce) across documents. */
   syncAnnouncer(): void {
     for (const ctx of this.contexts.values()) {
-      if (this.settings.announcer) ctx.announcer.mount();
+      if (this.wantsLiveRegion()) ctx.announcer.mount();
       else ctx.announcer.unmount();
     }
   }

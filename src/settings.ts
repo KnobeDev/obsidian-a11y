@@ -15,6 +15,7 @@ const TOGGLES: Toggle[] = [
   { key: "forms", name: "Settings controls", desc: "Associate names/descriptions and expose toggle state." },
   { key: "focusRing", name: "Visible focus ring", desc: "Inject a focus indicator across the UI (overrides outline:none)." },
   { key: "announcer", name: "Announce notices", desc: "Mirror toast notices into a screen-reader live region." },
+  { key: "lineAnnounce", name: "Announce editor line", desc: "Speak the current line number as the caret moves between lines, so screen readers convey position (the line-number gutter is invisible to them)." },
   { key: "escapeEditables", name: "Escape from editors", desc: "Press Escape in the editor or a text field to move focus back to navigable controls." },
   { key: "readingDefault", name: "Open notes in Reading view", desc: "Markdown opens in Reading view; editing stays opt-in via the note's edit toggle." },
   { key: "mobileSupport", name: "Mobile layout support", desc: "Experimental touch and screen-reader optimizations for mobile layouts (side drawer containment, bottom navbar toolbar roles, and TalkBack focus rings). Off by default." },
@@ -44,7 +45,9 @@ export class A11ySettingTab extends PluginSettingTab {
             .onChange(async (value) => {
               this.plugin.settings[t.key] = value;
               await this.plugin.saveSettings();
-              if (t.key === "announcer") this.plugin.syncAnnouncer();
+              if (t.key === "announcer" || t.key === "lineAnnounce") {
+                this.plugin.syncAnnouncer();
+              }
               if (t.key === "readingDefault" && value) this.plugin.enforceReadingMode();
               this.plugin.resweep();
             }),
