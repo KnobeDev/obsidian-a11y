@@ -1,6 +1,6 @@
 {
   "name": "obsidian-a11y-enhancer",
-  "version": "0.6.5",
+  "version": "0.6.6",
   "description": "Runtime WCAG 2.1 AA accessibility retrofit for Obsidian, delivered as a community plugin.",
   "author": "Joshua Hori (https://github.com/jdhori)",
   "license": "MIT",

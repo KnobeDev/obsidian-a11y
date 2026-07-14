@@ -178,10 +178,15 @@ function move(tree: HTMLElement, target: HTMLElement | null | undefined): void {
 
 export function installTreeKeyboard(tree: HTMLElement, mobileSupportActive = false): void {
   if (Platform.isMobile && mobileSupportActive) {
+    // Touch model: rows (.tree-item-self) are the swipe stops and carry the
+    // treeitem semantics (see enhanceTreeItemMobile in structure.ts). The
+    // container must NOT be a composite aria-activedescendant widget here — that
+    // pattern has no touch gesture to move the active row, which strands TalkBack
+    // on a single item. So drop the container's tab stop and cursor, but leave the
+    // rows' own tabindex alone.
     if (!tree.hasAttribute("aria-label")) setAttr(tree, "aria-label", labelForTree(tree));
-    tree
-      .querySelectorAll<HTMLElement>(TREEITEM)
-      .forEach((t) => removeAttr(t, "tabindex"));
+    removeAttr(tree, "tabindex");
+    removeAttr(tree, "aria-activedescendant");
     detachTreeKeyboard(tree as KbdTreeEl);
     return;
   }

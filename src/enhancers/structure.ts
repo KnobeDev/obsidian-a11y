@@ -95,8 +95,102 @@ function itemName(self: HTMLElement | null): string {
   return name;
 }
 
+/** Whether a .tree-item is a collapsible folder (has children / nav-folder / mod-collapsible). */
+function isCollapsible(item: HTMLElement, self: HTMLElement | null): boolean {
+  return (
+    !!item.querySelector(":scope > .tree-item-children") ||
+    item.classList.contains("nav-folder") ||
+    !!self?.classList.contains("mod-collapsible")
+  );
+}
+
+/**
+ * Mobile/TalkBack variant. Touch screen readers navigate by swiping real DOM
+ * nodes, not by the desktop aria-activedescendant model, and they will not swipe
+ * into the descendants of a node that carries its own accessible name. Because
+ * role=treeitem on the WRAPPER means the labeled node also CONTAINS the child
+ * group, TalkBack lands on a folder and skips straight past its contents.
+ *
+ * So on mobile the treeitem semantics live on the ROW (.tree-item-self), which is
+ * a leaf — it does not contain the group — and the wrapper is demoted to
+ * role=none so it neither doubles as a treeitem nor hides the subtree behind its
+ * name. Hierarchy is carried by aria-level (structural ownership is intentionally
+ * pragmatic rather than spec-pure; the desktop path keeps the strict tree).
+ */
+function enhanceTreeItemMobile(item: HTMLElement): void {
+  const self = item.querySelector<HTMLElement>(":scope > .tree-item-self");
+  const children = item.querySelector<HTMLElement>(":scope > .tree-item-children");
+  const collapsible = isCollapsible(item, self);
+
+  if (self) {
+    setRoleIfAbsent(self, "treeitem");
+    setAttr(self, "aria-level", String(levelOf(item)));
+    setAttr(self, "tabindex", "0"); // an explicit swipe stop for TalkBack
+    if (collapsible) {
+      setAttr(self, "aria-expanded", String(!item.classList.contains("is-collapsed")));
+    } else {
+      removeAttr(self, "aria-expanded");
+    }
+    // The open file is the selected row, so TalkBack announces which one it is.
+    setAttr(
+      self,
+      "aria-selected",
+      String(self.classList.contains("is-active") || self.classList.contains("has-focus")),
+    );
+    const name = itemName(self);
+    if (name) setAttr(self, "aria-label", name);
+    else if (!self.hasAttribute("aria-label")) {
+      setAttr(self, "aria-label", collapsible ? "Folder" : "Item");
+    }
+    hideFromAT(self.querySelector(".tree-item-icon") ?? null);
+  }
+
+  // Demote the wrapper: it must not present as a second treeitem or swallow the
+  // subtree behind its own name. Its children (the row + the nested group) are
+  // promoted to the tree. setAttr (not setRoleIfAbsent) so a stale role=treeitem
+  // from a prior desktop pass is actively corrected.
+  setAttr(item, "role", "none");
+  removeAttr(item, "aria-label");
+  removeAttr(item, "aria-level");
+  removeAttr(item, "aria-expanded");
+  removeAttr(item, "aria-selected");
+
+  if (children) setRoleIfAbsent(children, "group");
+
+  const parent = item.parentElement;
+  if (
+    parent &&
+    !parent.classList.contains("tree-item-children") &&
+    !parent.hasAttribute("role")
+  ) {
+    setAttr(parent, "role", "tree");
+    setAttr(parent, "aria-multiselectable", "false");
+  }
+}
+
+/** Strip mobile row-level treeitem residue so the desktop model can reassert cleanly. */
+function clearMobileTreeResidue(item: HTMLElement): void {
+  const self = item.querySelector<HTMLElement>(":scope > .tree-item-self");
+  if (self && self.getAttribute("role") === "treeitem") {
+    removeAttr(self, "role");
+    removeAttr(self, "tabindex");
+    removeAttr(self, "aria-level");
+    removeAttr(self, "aria-expanded");
+    removeAttr(self, "aria-selected");
+    removeAttr(self, "aria-label");
+  }
+  // A wrapper demoted to role=none on mobile must lose that role before the
+  // desktop pass can set role=treeitem on it (setRoleIfAbsent won't overwrite).
+  if (item.getAttribute("role") === "none") removeAttr(item, "role");
+}
+
 /** Tag a genuinely hierarchical .tree-item as treeitem/group + tree root. */
-function enhanceTreeItem(item: HTMLElement): void {
+function enhanceTreeItem(item: HTMLElement, mobile = false): void {
+  if (mobile) {
+    enhanceTreeItemMobile(item);
+    return;
+  }
+  clearMobileTreeResidue(item);
   // The role goes on the WRAPPER so the tree → treeitem → group ownership
   // chain validates (the wrapper is a direct child of the tree root or of a
   // parent's group; its own .tree-item-children is the nested group).
@@ -197,8 +291,9 @@ function makeFlatContainer(el: HTMLElement): void {
 }
 
 function enhanceTrees(doc: Document, mobileSupportActive = false): void {
+  const mobile = mobileSupportActive && Platform.isMobile;
   doc.querySelectorAll<HTMLElement>(".tree-item").forEach((item) => {
-    if (isHierarchicalView(item)) enhanceTreeItem(item);
+    if (isHierarchicalView(item)) enhanceTreeItem(item, mobile);
     else enhanceFlatItem(item);
   });
 
