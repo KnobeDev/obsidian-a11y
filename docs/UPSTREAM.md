@@ -32,6 +32,28 @@ Enter/Space activation) and appear in the tab order.
 **Plugin shim:** adds `role`/`tabindex` and Enter/Space handlers at runtime; a
 native element would be more robust and wouldn't depend on class names.
 
+**✅ Partially resolved upstream (Obsidian 1.13.4 / 1.13.5):** core added native
+keyboard navigation to the **Settings** window — arrow keys to move, `Enter` to
+open a tab, `Ctrl/Cmd-F` to focus search, Vim bindings (1.13.4), and
+`Tab`/`Shift-Tab` moving to the next focusable element (1.13.5). As of plugin
+0.6.8 the shim **stops enhancing the settings section list entirely on ≥ 1.13.4**
+— both the keyboard handling (running both double-fired focus movement) and the
+`tablist`/`tab` ARIA. Core drives the list as a flat focusable list, so leaving
+the tab roles in place would be a 4.1.2 role/behavior mismatch; the plugin now
+lets core own keyboard *and* semantics there. The ribbon, status bar, sidebar
+toggles, and modal close button remain unresolved in core and are still shimmed.
+
+> Residual (confirmed on Obsidian 1.13.5 via CDP against the live app, plugin
+> 0.6.8 deferring): core makes the settings section items keyboard-operable
+> (all `.vertical-tab-nav-item` get `tabindex="-1"`; ArrowUp/Down move focus one
+> item at a time; `Tab` from the search box lands in the list), but each item's
+> computed accessibility role is **`generic`** (name resolved from its text,
+> `ignored: false`). So the items are reachable, focusable, and named, but lack a
+> control role (`tab`/`button`). That is a core-only gap worth filing separately
+> (**CORE-9**, below) — the plugin deliberately no longer papers over it with a
+> mismatched `tab` role, since core's keyboard model is a flat focusable list, not
+> an APG tablist.
+
 ---
 
 ## CORE-2 🔴 Global `:focus { outline: none }` removes the keyboard focus indicator
@@ -162,7 +184,30 @@ hand-roll error regions on their own controls.
 
 ---
 
+## CORE-9 🟡 Settings section items are keyboard-operable but expose no control role
+**WCAG:** 4.1.2 Name/Role/Value (A) · **Category:** Bug report
+
+Obsidian 1.13.4 added keyboard navigation to the **Settings** section list and
+1.13.5 refined its `Tab` behaviour, but the items (`.vertical-tab-nav-item`)
+remain plain `<div>`s. Verified on 1.13.5 (CDP against the live app): each item is
+focusable (`tabindex="-1"`, moved via core's arrow-key handler), `Tab` from the
+settings search box lands in the list, and the item's accessible **name** resolves
+from its text — but its computed **role is `generic`**. A screen-reader user hears
+the label with no indication that it is a selectable section control.
+
+**Expected:** the items carry a control role that matches core's interaction model
+— either native `<button>`s in a labelled list, or a proper APG `tab`/`tablist`
+with the roving/`Tab`-exits-to-panel keyboard model to match the role.
+
+**Plugin shim:** none, by design. Before 1.13.4 the plugin stamped `role="tab"`;
+now that core owns the keyboard as a flat focusable list, stamping `tab` would be a
+role/behaviour mismatch, so as of 0.6.8 the plugin defers entirely and leaves this
+for core.
+
+---
+
 ### Suggested submission order
 Lead with **CORE-1**, **CORE-2**, **CORE-3** — these are the Level-A blockers that
 make Obsidian unusable by keyboard/screen-reader users. CORE-4–7 follow as major
-AA issues; CORE-8 is a small enabling feature request.
+AA issues; CORE-8 is a small enabling feature request, and CORE-9 a minor AA
+role gap surfaced once core added the keyboard nav.

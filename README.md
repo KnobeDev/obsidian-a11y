@@ -32,10 +32,11 @@ Each toggle in **Settings → Accessibility Enhancer** maps to an audited findin
 |---|---|---|
 | Chrome & navigation | 2.1.1, 4.1.2 | Ribbon, sidebar toggles, status-bar items → operable buttons; sidebar open/closed state exposed |
 | Tabs & file tree | 1.3.1, 4.1.2 | `tablist`/`tab` + roving arrows; `tree`/`treeitem`/`group` with `aria-expanded`/`-level`/`-selected` |
-| Modals & palettes | 2.1.1, 2.4.3, 4.1.2 | `dialog` + focus trap/restore; **keyboard-operable settings nav**; combobox/listbox for the palette |
+| Modals & palettes | 2.1.1, 2.4.3, 4.1.2 | `dialog` + focus trap/restore; settings-nav tablist semantics (keyboard deferred to core on Obsidian ≥ 1.13.4 — see [Obsidian version compatibility](#obsidian-version-compatibility)); combobox/listbox for the palette |
 | Settings controls | 1.3.1, 4.1.2 | Names/descriptions associated; toggle exposes `role="switch"` + `aria-checked` |
 | Visible focus ring | 2.4.7 | Restores a focus indicator the global `outline:none` removed |
 | Announce notices | 4.1.3 | Mirrors toast notices into a polite live region |
+| Announce editor line | 1.3.1 | Speaks the caret's line number as it moves (the line-number gutter is visual-only) |
 | Honor reduced motion | 2.3.3 | Suppresses animations when the OS asks |
 | Contrast boost (opt-in) | 1.4.3, 1.4.11 | Overrides default-theme tokens that fail contrast |
 
@@ -101,6 +102,26 @@ vault's plugin folder; defaults to a repo-local `test-vault/`). Then enable
 Releases are cut automatically: push a tag equal to the `manifest.json` version
 (e.g. `git tag 0.1.0 && git push origin 0.1.0`) and the
 [release workflow](.github/workflows/release.yml) builds and publishes the assets.
+
+## Obsidian version compatibility
+
+As Obsidian ships its own accessibility improvements, this plugin **backs off**
+the shims that are no longer needed — running both would double up. The plugin
+still supports `minAppVersion` 1.4.0, so older installs keep the full shim; newer
+ones defer to core.
+
+| Shim | Deferred to core as of | Why |
+|---|---|---|
+| **Settings section list** — the whole enhancement: keyboard nav (arrows / `Enter` / roving tab order) **and** the `tablist`/`tab` ARIA + tab↔panel wiring | **Obsidian 1.13.4** | 1.13.4 added native keyboard navigation to Settings (arrow keys to move, `Enter` to open a tab, `Ctrl/Cmd-F` to focus search, plus Vim bindings), and 1.13.5 made `Tab`/`Shift-Tab` move to the next focusable element there. Keeping the plugin's own key handler on top caused a **double focus jump** on every arrow press. And because core drives the list as a *flat focusable list* (Tab steps through every item) rather than an APG tablist (one tab stop, arrow-only, Tab exits to the panel), leaving the `role="tab"`/`tablist` semantics in place would be a **WCAG 4.1.2 role/behavior mismatch** — the role would promise interaction core doesn't provide. So on ≥ 1.13.4 the plugin stops enhancing the settings section list entirely and lets Obsidian own both the keyboard and the semantics. |
+
+If you're on an older Obsidian build, the plugin transparently re-enables its full
+settings-nav shim.
+
+> **Verification note:** keyboard reachability of the settings section list on
+> Obsidian ≥ 1.13.4 relies on core. This has been reconciled against the changelog
+> but still needs a live keyboard-only + screen-reader (NVDA/VoiceOver) pass on a
+> real 1.13.4 build to confirm the list stays reachable and correctly announced
+> with the shim disabled.
 
 ## Limitations (and what we punt upstream)
 

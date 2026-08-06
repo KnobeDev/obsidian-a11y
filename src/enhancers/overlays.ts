@@ -2,7 +2,7 @@
 // navigation (keyboard-operable tabs), the command palette / quick switcher /
 // suggestions (combobox + listbox), and menus.
 
-import { Platform } from "obsidian";
+import { Platform, requireApiVersion } from "obsidian";
 import {
   ensureId,
   isVisible,
@@ -194,7 +194,21 @@ function installVerticalTabKeys(nav: HTMLElement, mobileSupportActive = false): 
   nav.addEventListener("focusout", () => { spaceArmed = null; });
 }
 
+// Obsidian 1.13.4 added native keyboard navigation to the Settings window
+// (arrow keys to move, Enter to open, Ctrl/Cmd-F to focus search, Vim bindings),
+// and 1.13.5 made Tab/Shift-Tab move to the next focusable element there. On
+// those builds we hand the settings section list entirely to core and stop
+// enhancing it. Layering our tablist/tab ARIA over core's model would be a
+// role/behavior mismatch (WCAG 4.1.2): the `tab` role promises a single roving
+// tab stop with arrow-only movement and Tab exiting to the panel, but core steps
+// Tab through every item (a flat focusable list). A `tabpanel` without a real
+// tablist owner is likewise an orphan role, so the panel wiring comes out too.
+// Older builds, which have no native keyboard nav, keep the full shim.
+const CORE_HANDLES_SETTINGS_NAV = requireApiVersion("1.13.4");
+
 function enhanceSettingsNav(doc: Document, mobileSupportActive = false): void {
+  if (CORE_HANDLES_SETTINGS_NAV) return;
+
   // .vertical-tab-header is the direct container of the nav items; tag only it
   // as the tablist (tagging the outer group too would nest tablists).
   doc.querySelectorAll<HTMLElement>(".vertical-tab-header").forEach((h) => {
