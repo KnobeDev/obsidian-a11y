@@ -76,7 +76,7 @@ tree, per-invocation modals).
 ### Via BRAT (recommended while in beta)
 
 1. Install the [BRAT](https://github.com/TfTHacker/obsidian42-brat) community plugin.
-2. BRAT → **Add beta plugin** → `https://github.com/jdhori/obsidian-a11y`.
+2. BRAT → **Add beta plugin** → `https://github.com/KnobeDev/obsidian-a11y`.
 3. Enable **Accessibility Enhancer** under Settings → Community plugins.
 
 BRAT pulls the latest GitHub release, so you get updates automatically.
@@ -84,7 +84,7 @@ BRAT pulls the latest GitHub release, so you get updates automatically.
 ### Manual
 
 Download `main.js`, `manifest.json`, and `styles.css` from the
-[latest release](https://github.com/jdhori/obsidian-a11y/releases/latest) into
+[latest release](https://github.com/KnobeDev/obsidian-a11y/releases/latest) into
 `<vault>/.obsidian/plugins/a11y-enhancer/`, then enable the plugin.
 
 ## Develop
