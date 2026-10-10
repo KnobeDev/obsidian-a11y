@@ -16,6 +16,7 @@ import { lineAnnouncer } from "./line-announce";
 interface DocContext {
   observer: A11yObserver;
   announcer: Announcer;
+  removeEscapeHandler: () => void;
 }
 
 export default class A11yEnhancerPlugin extends Plugin {
@@ -100,14 +101,15 @@ export default class A11yEnhancerPlugin extends Plugin {
     if (this.wantsLiveRegion()) announcer.mount();
     const observer = new A11yObserver(doc, (d) => this.sweep(d, announcer));
     observer.start();
-    installEscapeEditable(doc, this.app, () => this.settings.escapeEditables);
-    this.contexts.set(doc, { observer, announcer });
+    const removeEscapeHandler = installEscapeEditable(doc, this.app, () => this.settings.escapeEditables);
+    this.contexts.set(doc, { observer, announcer, removeEscapeHandler });
   }
 
   private detach(doc: Document): void {
     const ctx = this.contexts.get(doc);
     if (!ctx) return;
     ctx.observer.stop();
+    ctx.removeEscapeHandler();
     ctx.announcer.unmount();
     uninstallTreeKeyboard(doc); // raw listeners aren't registerDomEvent-managed
     this.clearBodyFlags(doc);

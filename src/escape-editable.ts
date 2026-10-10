@@ -7,13 +7,13 @@
 //   - Only the CodeMirror editor traps Tab. Plain <input>/<textarea> let Tab
 //     out natively and have their own Esc semantics (e.g. file-rename cancel),
 //     so they are NOT handled here.
-//   - Bubble phase + defer when another handler already consumed Esc
+//   - Defer until after dispatch when another handler already consumed Esc
 //     (e.defaultPrevented) — so CM autocomplete/selection/tooltip Esc, and
 //     Vim normal-mode Esc, all win.
 //   - Ignored during IME composition.
 
 import { App } from "obsidian";
-import { once } from "./dom";
+import { isVisible } from "./dom";
 
 function exitTarget(editor: Element, doc: Document): HTMLElement | null {
   const leaf = editor.closest(".workspace-leaf");
@@ -51,35 +51,31 @@ export function installEscapeEditable(
   doc: Document,
   app: App,
   isEnabled: () => boolean,
-): void {
-  if (!doc.body || !once(doc.body, "EscEditable")) return;
+): () => void {
+  let disposed = false;
+  const onKeydown = (e: KeyboardEvent): void => {
+    if (e.key !== "Escape" || !isEnabled() || e.isComposing ||
+        e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+    const el = doc.activeElement as HTMLElement | null;
+    const editor = el?.closest(".cm-editor");
+    if (!editor || el?.closest(".modal-container, .prompt")) return;
+    if (editor.querySelector(".cm-tooltip") ||
+        Array.from(doc.querySelectorAll<HTMLElement>(".suggestion-container")).some(isVisible)) return;
+    const vim = (app.vault as unknown as { getConfig?: (k: string) => unknown })
+      .getConfig?.("vimMode");
+    if (vim) return;
 
-  // Capture phase: Obsidian/CodeMirror consume Escape before it reaches the
-  // document in the bubble phase, so we must look first. We defer (do nothing,
-  // letting the event continue) for every case where Esc has a local meaning.
-  doc.addEventListener(
-    "keydown",
-    (e: KeyboardEvent) => {
-      if (e.key !== "Escape" || !isEnabled() || e.isComposing) return;
-
-      const el = doc.activeElement as HTMLElement | null;
-      const editor = el?.closest(".cm-editor");
-      if (!editor) return; // only the editor traps Tab
-      if (el?.closest(".modal-container, .prompt")) return; // editor in a dialog: let Esc close it
-      if (editor.querySelector(".cm-tooltip-autocomplete")) return; // let Esc close autocomplete
-
-      // Vim normal-mode uses Esc; don't fight it.
-      const vim = (
-        app.vault as unknown as { getConfig?: (k: string) => unknown }
-      ).getConfig?.("vimMode");
-      if (vim) return;
-
-      const target = exitTarget(editor, doc);
-      if (!target) return;
-      e.preventDefault();
-      e.stopPropagation();
-      target.focus();
-    },
-    true,
-  );
+    // Capture observes even when CM stops propagation. Run after dispatch so
+    // native autocomplete, highlight pickers and other Escape handlers win.
+    doc.defaultView?.setTimeout(() => {
+      if (disposed || e.defaultPrevented || !isEnabled() || doc.activeElement !== el ||
+          !editor.isConnected) return;
+      exitTarget(editor, doc)?.focus();
+    }, 0);
+  };
+  doc.addEventListener("keydown", onKeydown, true);
+  return () => {
+    disposed = true;
+    doc.removeEventListener("keydown", onKeydown, true);
+  };
 }

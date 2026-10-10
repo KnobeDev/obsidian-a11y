@@ -45,6 +45,7 @@ function enhanceTabs(doc: Document, mobileSupportActive = false): void {
     // On mobile, keep all tabs focusable so they are not skipped by screen reader swipes.
     const isMobile = mobileSupportActive && Platform.isMobile;
     const tabindex = isMobile ? 0 : (active ? 0 : -1);
+    const coreKeyboard = tab.hasAttribute("tabindex") && !tab.dataset.a11yOnceKbd;
     makeActivatable(tab, { role: "tab", tabindex });
     setAttr(tab, "aria-selected", String(active));
 
@@ -54,15 +55,18 @@ function enhanceTabs(doc: Document, mobileSupportActive = false): void {
     // Roving arrow navigation. Manual activation: arrows move focus only; the
     // user presses Enter/Space (via makeActivatable) to actually switch tabs, so
     // arrowing past a tab never triggers a document load. Only register on desktop.
-    if (!isMobile && once(tab, "TabArrows")) {
+    if (!isMobile && !coreKeyboard && once(tab, "TabArrows")) {
       tab.addEventListener("keydown", (e: KeyboardEvent) => {
+        if (e.target !== tab || e.defaultPrevented || e.isComposing ||
+            e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
         if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
         const group = Array.from(
           tab.parentElement?.querySelectorAll<HTMLElement>(".workspace-tab-header") ?? [],
         );
         const i = group.indexOf(tab);
+        const rtl = tab.ownerDocument.defaultView?.getComputedStyle(tab).direction === "rtl";
         const next =
-          e.key === "ArrowRight"
+          (e.key === "ArrowRight") !== rtl
             ? group[i + 1] ?? group[0]
             : group[i - 1] ?? group[group.length - 1];
         if (next) {

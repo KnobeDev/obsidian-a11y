@@ -49,7 +49,11 @@ interface ActivatableOptions {
  * The click handler Obsidian already attached does the real work.
  */
 export function makeActivatable(el: HTMLElement, opts: ActivatableOptions = {}): void {
+  // Core owns native controls and controls it already made keyboard-focusable.
+  // Keep our own shims eligible on subsequent observer sweeps.
+  if (el.matches('button, input, select, textarea, a[href], summary')) return;
   if (opts.role) setRoleIfAbsent(el, opts.role);
+  if (el.hasAttribute("tabindex") && !el.dataset.a11yOnceKbd) return;
 
   // tabindex is set on every pass (cheaply, via setAttr) so roving state stays
   // correct as the active element changes.
@@ -63,6 +67,12 @@ export function makeActivatable(el: HTMLElement, opts: ActivatableOptions = {}):
 
   let spaceArmed = false;
   el.addEventListener("keydown", (e: KeyboardEvent) => {
+    if (e.repeat) return;
+    if (e.target !== el || e.defaultPrevented || e.isComposing ||
+        e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) {
+      spaceArmed = false;
+      return;
+    }
     if (e.key === "Enter") {
       e.preventDefault();
       el.click();
@@ -73,6 +83,11 @@ export function makeActivatable(el: HTMLElement, opts: ActivatableOptions = {}):
     }
   });
   el.addEventListener("keyup", (e: KeyboardEvent) => {
+    if (e.target !== el || e.defaultPrevented || e.isComposing ||
+        e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) {
+      spaceArmed = false;
+      return;
+    }
     if ((e.key === " " || e.key === "Spacebar") && spaceArmed) {
       e.preventDefault();
       spaceArmed = false;
@@ -104,11 +119,8 @@ export function isDrawerOpen(drawer: HTMLElement): boolean {
   const rect = drawer.getBoundingClientRect();
   if (rect.width === 0 || rect.height === 0) return false;
   
-  const isLeft = drawer.classList.contains("mod-left");
-  if (isLeft) {
-    return rect.right > 10;
-  } else {
-    const win = drawer.ownerDocument.defaultView ?? window;
-    return rect.left < win.innerWidth - 10;
-  }
+  // Geometric intersection works even when RTL swaps the visual sides.
+  const win = drawer.ownerDocument.defaultView ?? window;
+  return rect.right > 10 && rect.left < win.innerWidth - 10 &&
+    rect.bottom > 0 && rect.top < win.innerHeight;
 }

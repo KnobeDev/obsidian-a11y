@@ -41,10 +41,11 @@ function installModalTrap(container: HTMLElement): void {
 
   // Initial focus into the dialog.
   const initial = focusables(container);
-  (initial[0] ?? container).focus();
+  // Preserve core's chosen field (including the new Bases view-name focus).
+  if (!raw || !container.contains(raw)) (initial[0] ?? container).focus();
 
   container.addEventListener("keydown", (e: KeyboardEvent) => {
-    if (e.key !== "Tab") return;
+    if (e.key !== "Tab" || e.defaultPrevented) return;
     // Only the topmost modal traps; a nested dialog handles its own Tab.
     if (container !== topModal(doc)) return;
     const els = focusables(container);

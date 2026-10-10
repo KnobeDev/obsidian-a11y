@@ -209,6 +209,12 @@ export function installTreeKeyboard(tree: HTMLElement, mobileSupportActive = fal
 
 
   const onKeydown = (e: KeyboardEvent): void => {
+    // Nested search/rename controls and native shortcuts retain their keys.
+    if (e.target !== tree || e.defaultPrevented || e.isComposing ||
+        e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) {
+      spaceArmed = null;
+      return;
+    }
     const t = e.target as HTMLElement;
     // Don't hijack typing (inline rename input, search filter, etc.).
     if (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
@@ -223,7 +229,10 @@ export function installTreeKeyboard(tree: HTMLElement, mobileSupportActive = fal
 
     // Everything we handle suppresses the default scroll AND stops the event from
     // reaching Obsidian's document-level scope nav, so the models never collide.
-    switch (e.key) {
+    const rtl = tree.ownerDocument.defaultView?.getComputedStyle(tree).direction === "rtl";
+    const key = rtl && e.key === "ArrowRight" ? "ArrowLeft" :
+      rtl && e.key === "ArrowLeft" ? "ArrowRight" : e.key;
+    switch (key) {
       case "ArrowDown":
         e.preventDefault();
         e.stopPropagation();
