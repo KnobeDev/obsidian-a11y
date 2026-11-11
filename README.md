@@ -85,7 +85,29 @@ BRAT pulls the latest GitHub release, so you get updates automatically.
 
 Download `main.js`, `manifest.json`, and `styles.css` from the
 [latest release](https://github.com/KnobeDev/obsidian-a11y/releases/latest) into
-`<vault>/.obsidian/plugins/a11y-enhancer/`, then enable the plugin.
+`<vault>/.obsidian/plugins/accessibility-enhancer/`, then enable the plugin.
+
+### Upgrading from 0.6.x
+
+Version 0.7.0 changed the plugin ID from `a11y-enhancer` to
+`accessibility-enhancer`, because Obsidian's
+[manifest rules](https://docs.obsidian.md/Reference/Manifest) allow only lowercase
+letters and hyphens in an ID. Obsidian treats the new ID as a different plugin, so
+0.7.0 installs next to the old copy instead of replacing it:
+
+1. Get 0.7.0 into its own `accessibility-enhancer` folder.
+   - **BRAT:** its next update check installs 0.7.0 there but leaves it turned
+     off. If BRAT reports that the update failed, run **Add beta plugin** again
+     with the same repository URL.
+   - **Manual:** follow the steps above. If you copied the files over the old
+     `a11y-enhancer` folder instead, the plugin turns off; turn it back on, and
+     your settings stay where they were.
+2. Turn on 0.7.0 under Settings → Community plugins. On its first run it copies
+   your settings from the old `a11y-enhancer` folder.
+3. Turn off and uninstall the old copy in the same list. Both copies are named
+   **Accessibility Enhancer**; the old one is version 0.6.9 or earlier. Until you
+   remove it, 0.7.0 shows a notice at startup, because running both doubles every
+   fix.
 
 ## Develop
 

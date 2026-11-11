@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { build } from "esbuild";
 
 async function load(entry) {
@@ -238,6 +239,151 @@ test("RTL tree expansion reverses horizontal arrows and ignores nested controls"
   assert.equal(row.clicks, 2);
   for (const overrides of [{ target: new ElementFake("INPUT") }, { defaultPrevented: true }, { ctrlKey: true }, { isComposing: true }]) tree.fire("keydown", "ArrowRight", overrides);
   assert.equal(row.clicks, 2);
+});
+
+// Rules from https://docs.obsidian.md/Reference/Manifest (checked 2026-11-10).
+test("manifest follows Obsidian's manifest reference", () => {
+  const manifest = JSON.parse(readFileSync("manifest.json", "utf8"));
+  const pkg = JSON.parse(readFileSync("package.json", "utf8"));
+  const versions = JSON.parse(readFileSync("versions.json", "utf8"));
+  for (const key of ["id", "name", "version", "minAppVersion", "description", "author"]) {
+    assert.equal(typeof manifest[key], "string", key);
+    assert.ok(manifest[key].length > 0, key);
+  }
+  assert.equal(typeof manifest.isDesktopOnly, "boolean");
+  assert.match(manifest.id, /^[a-z-]+$/, "id: lowercase letters and hyphens only");
+  assert.doesNotMatch(manifest.id, /plugin$/, "id can't end with plugin");
+  assert.doesNotMatch(manifest.id, /obsidian/, "id can't contain obsidian");
+  assert.match(manifest.name, /^[A-Za-z0-9 ()+-]+$/, "name: Basic Latin, only - + ( ) punctuation");
+  assert.doesNotMatch(manifest.name, /obsi|sidian/i, "name can't include Obsidian or variants");
+  assert.doesNotMatch(manifest.name, /plugin/i, "name can't include Plugin");
+  assert.match(manifest.version, /^\d+\.\d+\.\d+$/, "version: x.y.z");
+  assert.match(manifest.minAppVersion, /^\d+\.\d+\.\d+$/);
+  assert.equal(pkg.version, manifest.version, "package.json version");
+  assert.equal(versions[manifest.version], manifest.minAppVersion, "versions.json entry");
+  assert.match(manifest.authorUrl, /^https:\/\//);
+  const repoUrl = pkg.repository.url.replace(/\.git$/, "");
+  assert.notEqual(manifest.authorUrl, repoUrl, "authorUrl is the author's site, not the plugin repo");
+});
+
+function fakeFiles(map, { failReads = false } = {}) {
+  return {
+    async exists(path) { return Object.hasOwn(map, path); },
+    async read(path) {
+      if (failReads || !Object.hasOwn(map, path)) throw new Error(`ENOENT ${path}`);
+      return map[path];
+    },
+  };
+}
+const LEGACY_DATA = "cfg/plugins/a11y-enhancer/data.json";
+const LEGACY_MANIFEST = "cfg/plugins/a11y-enhancer/manifest.json";
+const ENABLED_LIST = "cfg/community-plugins.json";
+
+test("settings carry over from the old a11y-enhancer folder, known toggles only", async () => {
+  const { readLegacySettings } = await load("src/legacy-id.ts");
+  const files = fakeFiles({ [LEGACY_DATA]: JSON.stringify({ chrome: false, contrastBoost: true, focusRing: "yes", unknown: true }) });
+  assert.deepEqual(await readLegacySettings(files, "cfg"), { chrome: false, contrastBoost: true });
+});
+test("missing, unreadable, malformed or empty old settings are ignored", async () => {
+  const { readLegacySettings } = await load("src/legacy-id.ts");
+  assert.equal(await readLegacySettings(fakeFiles({}), "cfg"), null, "missing");
+  assert.equal(await readLegacySettings(fakeFiles({ [LEGACY_DATA]: "{}" }, { failReads: true }), "cfg"), null, "unreadable");
+  for (const contents of ["{not json", "null", "[true]", "42", '"x"', "{}", '{"unknown":true}']) {
+    assert.equal(await readLegacySettings(fakeFiles({ [LEGACY_DATA]: contents }), "cfg"), null, contents);
+  }
+});
+test("an older copy counts as running only when it is enabled under the old id", async () => {
+  const { isLegacyCopyEnabled } = await load("src/legacy-id.ts");
+  const base = {
+    [LEGACY_MANIFEST]: JSON.stringify({ id: "a11y-enhancer", version: "0.6.9" }),
+    [ENABLED_LIST]: JSON.stringify(["dataview", "a11y-enhancer"]),
+  };
+  assert.equal(await isLegacyCopyEnabled(fakeFiles(base), "cfg"), true);
+  const cases = {
+    "not enabled": { ...base, [ENABLED_LIST]: '["dataview"]' },
+    "old folder overwritten with the new build": { ...base, [LEGACY_MANIFEST]: JSON.stringify({ id: "accessibility-enhancer" }) },
+    "old folder removed": { [ENABLED_LIST]: base[ENABLED_LIST] },
+    "no enabled list": { [LEGACY_MANIFEST]: base[LEGACY_MANIFEST] },
+    "malformed enabled list": { ...base, [ENABLED_LIST]: "{" },
+    "malformed manifest": { ...base, [LEGACY_MANIFEST]: "{" },
+  };
+  for (const [label, map] of Object.entries(cases)) {
+    assert.equal(await isLegacyCopyEnabled(fakeFiles(map), "cfg"), false, label);
+  }
+  assert.equal(await isLegacyCopyEnabled(fakeFiles(base, { failReads: true }), "cfg"), false, "unreadable");
+});
+
+test("saved settings win over an old-id install", async () => {
+  const { initialSettings } = await load("src/legacy-id.ts");
+  const { DEFAULT_SETTINGS } = await load("src/types.ts");
+  const files = fakeFiles({ [LEGACY_DATA]: JSON.stringify({ chrome: true, forms: false }) });
+  const result = await initialSettings({ chrome: false }, files, "cfg");
+  assert.deepEqual(result, { settings: { ...DEFAULT_SETTINGS, chrome: false }, carriedOver: false });
+});
+test("first run carries over old-id settings, otherwise uses defaults", async () => {
+  const { initialSettings } = await load("src/legacy-id.ts");
+  const { DEFAULT_SETTINGS } = await load("src/types.ts");
+  const files = fakeFiles({ [LEGACY_DATA]: JSON.stringify({ contrastBoost: true }) });
+  assert.deepEqual(await initialSettings(null, files, "cfg"), { settings: { ...DEFAULT_SETTINGS, contrastBoost: true }, carriedOver: true });
+  assert.deepEqual(await initialSettings(undefined, fakeFiles({}), "cfg"), { settings: DEFAULT_SETTINGS, carriedOver: false });
+  assert.deepEqual(await initialSettings("corrupt", files, "cfg"), { settings: DEFAULT_SETTINGS, carriedOver: false });
+});
+
+const REGION_ID = "a11y-enhancer-live";
+function fakeDoc() {
+  const byId = new Map();
+  const doc = {
+    body: {
+      appendChild(el) {
+        el.isConnected = true;
+        byId.set(el.id, el);
+        el.remove = () => { el.isConnected = false; byId.delete(el.id); };
+      },
+    },
+    getElementById: (id) => byId.get(id) ?? null,
+    createElement: () => ({
+      id: "", className: "", textContent: "", isConnected: false, attrs: new Map(),
+      getAttribute(name) { return this.attrs.get(name) ?? null; },
+      setAttribute(name, value) { this.attrs.set(name, value); },
+    }),
+    defaultView: { setTimeout: (fn) => { fn(); return 1; }, clearTimeout() {} },
+  };
+  return doc;
+}
+test("a second copy shares an existing live region instead of going silent", async () => {
+  const { Announcer } = await load("src/announcer.ts");
+  const doc = fakeDoc();
+  const older = new Announcer(doc);
+  older.mount();
+  const newer = new Announcer(doc);
+  newer.mount();
+  newer.say("Older copy still on");
+  assert.equal(doc.getElementById(REGION_ID).textContent, "Older copy still on");
+});
+test("announcer recreates its region after the other copy removes the shared one", async () => {
+  const { Announcer } = await load("src/announcer.ts");
+  const doc = fakeDoc();
+  const older = new Announcer(doc);
+  older.mount();
+  const newer = new Announcer(doc);
+  newer.mount();
+  older.unmount(); // the old copy is turned off and takes its region with it
+  assert.equal(doc.getElementById(REGION_ID), null);
+  newer.say("Line 4");
+  assert.equal(doc.getElementById(REGION_ID)?.textContent, "Line 4");
+});
+test("unmounting a shared region leaves it for the copy that created it", async () => {
+  const { Announcer } = await load("src/announcer.ts");
+  const doc = fakeDoc();
+  const owner = new Announcer(doc);
+  owner.mount();
+  const guest = new Announcer(doc);
+  guest.mount();
+  guest.unmount();
+  owner.say("Still here");
+  assert.equal(doc.getElementById(REGION_ID)?.textContent, "Still here");
+  guest.say("Should stay quiet");
+  assert.equal(doc.getElementById(REGION_ID).textContent, "Still here");
 });
 
 let failures = 0;
