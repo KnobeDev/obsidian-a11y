@@ -1,9 +1,9 @@
 {
   "id": "accessibility-enhancer",
   "name": "Accessibility Enhancer",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "minAppVersion": "1.4.0",
-  "description": "Retrofits WCAG 2.1 AA accessibility onto Obsidian's UI at runtime: keyboard operability, ARIA roles/names/states, visible focus, reduced motion, and live-region announcements. Community-maintained.",
+  "description": "Improves accessibility at runtime with keyboard navigation, ARIA roles, names and states, visible focus, reduced motion, and live-region announcements. Community-maintained.",
   "author": "Joshua Hori",
   "authorUrl": "https://github.com/KnobeDev",
   "isDesktopOnly": false
