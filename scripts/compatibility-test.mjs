@@ -189,7 +189,10 @@ test("toggle keys come from the plugin on builds where only the checkbox was key
   label.fire("keydown", "Enter");
   label.fire("keydown", " ");
   label.fire("keyup", " ");
-  assert.equal(label.clicks, 2);
+  // Clicking the checkbox, not the <label>: a label click moves focus to the
+  // hidden checkbox (seen live on 1.12.7), stranding keyboard and screen-reader focus.
+  assert.equal(input.clicks, 2, "each key toggles once");
+  assert.equal(label.clicks, 0, "focus stays on the switch");
 });
 test("settings section list defers to core keyboard navigation from 1.13.0", async () => {
   const { enhanceOverlays } = await load("src/enhancers/overlays.ts");
@@ -480,6 +483,51 @@ test("unmounting a shared region leaves it for the copy that created it", async 
   assert.equal(doc.getElementById(REGION_ID)?.textContent, "Still here");
   guest.say("Should stay quiet");
   assert.equal(doc.getElementById(REGION_ID).textContent, "Still here");
+});
+
+// Obsidian 1.13+ opens Settings (by default) in a window of its own: core's
+// popout modal builds the window inside open(), then calls Modal.prototype.open
+// via super.open(). No workspace "window-open" event fires for it.
+test("modal windows are reported after core's open, and the hook unwinds cleanly", async () => {
+  const { watchModalDocuments } = await load("src/modal-windows.ts");
+  const mainDoc = { name: "main" };
+  const settingsDoc = { name: "settings" };
+  const proto = { open() { this.modalEl = { ownerDocument: this.popout ? settingsDoc : mainDoc }; return "opened"; } };
+  const original = proto.open;
+  const seen = [];
+  const stop = watchModalDocuments(proto, (doc) => seen.push(doc.name));
+  assert.equal(proto.open.call({ popout: true }), "opened", "core's return value passes through");
+  proto.open.call({ popout: false });
+  assert.deepEqual(seen, ["settings", "main"]);
+  stop();
+  assert.equal(proto.open, original, "restored when nothing else wrapped it");
+});
+test("a failure in the plugin's hook never breaks a modal's open()", async () => {
+  const { watchModalDocuments } = await load("src/modal-windows.ts");
+  const proto = { open() { this.modalEl = { ownerDocument: { name: "settings" } }; return "opened"; } };
+  const errors = [];
+  const realError = console.error;
+  console.error = (...args) => errors.push(args);
+  try {
+    watchModalDocuments(proto, () => { throw new Error("attach failed"); });
+    assert.equal(proto.open.call({}), "opened");
+    assert.equal(errors.length, 1, "logged, not thrown");
+  } finally {
+    console.error = realError;
+  }
+});
+test("unwinding leaves another plugin's later wrapper in place but inert", async () => {
+  const { watchModalDocuments } = await load("src/modal-windows.ts");
+  const proto = { open() { this.modalEl = { ownerDocument: { name: "settings" } }; } };
+  const seen = [];
+  const stop = watchModalDocuments(proto, (doc) => seen.push(doc.name));
+  const ours = proto.open;
+  let otherCalls = 0;
+  proto.open = function (...args) { otherCalls++; return ours.apply(this, args); }; // another plugin wraps after us
+  stop();
+  proto.open.call({});
+  assert.equal(otherCalls, 1, "the other wrapper still runs");
+  assert.deepEqual(seen, [], "ours no longer reports");
 });
 
 let failures = 0;
