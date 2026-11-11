@@ -1,4 +1,4 @@
-import { Notice, Plugin, Platform } from "obsidian";
+import { Modal, Notice, Plugin, Platform } from "obsidian";
 import { A11ySettings, DEFAULT_SETTINGS } from "./types";
 import { initialSettings, isLegacyCopyEnabled } from "./legacy-id";
 import { A11yObserver } from "./observer";
@@ -12,6 +12,7 @@ import { installEscapeEditable } from "./escape-editable";
 import { forceActiveReading } from "./reading-mode";
 import { uninstallTreeKeyboard } from "./enhancers/tree-keyboard";
 import { isSidebarOpen } from "./dom";
+import { watchModalDocuments } from "./modal-windows";
 import { lineAnnouncer } from "./line-announce";
 
 interface DocContext {
@@ -51,6 +52,16 @@ export default class A11yEnhancerPlugin extends Plugin {
   private initializePlugin(): void {
     this.applyBodyFlags(document);
     this.attach(document);
+    // Modals core opens in a window of their own (Settings, by default, from 1.13).
+    this.register(
+      watchModalDocuments(
+        Modal.prototype as unknown as Parameters<typeof watchModalDocuments>[0],
+        (doc) => this.attachModalWindow(doc),
+      ),
+    );
+    // The plugin is often turned on from that Settings window, already open.
+    const settingsEl = (this.app as unknown as { setting?: { modalEl?: HTMLElement } }).setting?.modalEl;
+    if (settingsEl?.isConnected) this.attachModalWindow(settingsEl.ownerDocument);
     this.registerEvent(
       this.app.workspace.on("window-open", (_win: unknown, win: Window) => {
         if (win?.document) this.attach(win.document);
@@ -101,6 +112,17 @@ export default class A11yEnhancerPlugin extends Plugin {
   onunload(): void {
     for (const doc of Array.from(this.contexts.keys())) this.detach(doc);
     // The main document is in `contexts`, so detach() already cleared its flags.
+  }
+
+  /** Attach to a modal's own window, if new to us, and let go when it closes. */
+  private attachModalWindow(doc: Document): void {
+    if (this.contexts.has(doc) || !doc.body) return;
+    this.attach(doc);
+    const win = doc.defaultView;
+    if (!win) return;
+    const onUnload = (): void => this.detach(doc);
+    win.addEventListener("unload", onUnload, { once: true });
+    this.register(() => win.removeEventListener("unload", onUnload));
   }
 
   private attach(doc: Document): void {

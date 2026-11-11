@@ -42,7 +42,12 @@ export function enhanceToggle(container: HTMLElement): void {
   // Core marks a disabled toggle only with a class (and ignores clicks on it).
   if (container.classList.contains("is-disabled")) setAttr(container, "aria-disabled", "true");
   else removeAttr(container, "aria-disabled");
-  makeActivatable(container, coreOwnsKeys ? {} : { ownKeys: true });
+  // Click the checkbox, not the label: a label click moves focus onto the
+  // hidden checkbox, stranding keyboard and screen-reader focus.
+  // Looked up per press: core may re-render the checkbox after the first sweep.
+  const activate = (): void =>
+    (container.querySelector<HTMLElement>('input[type="checkbox"]') ?? container).click();
+  makeActivatable(container, coreOwnsKeys ? {} : { ownKeys: true, activate });
 }
 
 export function enhanceForms(doc: Document): void {

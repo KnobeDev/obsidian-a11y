@@ -139,7 +139,11 @@ their version to plugins like any other build.)
 | **Toggle switch keys** (`Space`/`Enter`) — the `switch` role and `aria-checked` stay | Detected per toggle, not by version | Newer Obsidian (seen in 1.15.1) handles `Space`/`Enter` on the toggle and takes its inner checkbox out of the tab order; the plugin then leaves the keys to core. Older builds (such as 1.12.7) left the checkbox as the keyboard control, so there the plugin supplies the keys for the one switch it exposes. The release notes don't say which version changed this, so the plugin checks the toggle itself. |
 
 If you're on an older Obsidian build, the plugin transparently re-enables its full
-settings-nav shim. On newer builds the section items are keyboard-operable but
+settings-nav shim.
+
+Since 1.13, Obsidian opens Settings in its own window by default. From 0.7.2 the
+plugin follows it there; earlier versions never reached that window, so its toggles,
+focus ring and announcements were missing in Settings. On newer builds the section items are keyboard-operable but
 expose no role; that gap is core's to fix (CORE-9 in [docs/UPSTREAM.md](docs/UPSTREAM.md)).
 
 Everything else is still shimmed because core doesn't provide it as of 1.15.1:

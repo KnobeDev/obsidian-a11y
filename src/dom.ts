@@ -45,6 +45,8 @@ interface ActivatableOptions {
    * Only for elements where core is known to add no key handling of its own.
    */
   ownKeys?: boolean;
+  /** What a key press does. Defaults to clicking the element. */
+  activate?: () => void;
 }
 
 /**
@@ -70,6 +72,8 @@ export function makeActivatable(el: HTMLElement, opts: ActivatableOptions = {}):
 
   if (!once(el, "Kbd")) return;
 
+  const activate = opts.activate ?? (() => el.click());
+
   let spaceArmed = false;
   el.addEventListener("keydown", (e: KeyboardEvent) => {
     if (e.repeat) return;
@@ -80,7 +84,7 @@ export function makeActivatable(el: HTMLElement, opts: ActivatableOptions = {}):
     }
     if (e.key === "Enter") {
       e.preventDefault();
-      el.click();
+      activate();
     } else if (e.key === " " || e.key === "Spacebar") {
       // Prevent page scroll; defer activation to keyup (so it can be cancelled).
       e.preventDefault();
@@ -96,7 +100,7 @@ export function makeActivatable(el: HTMLElement, opts: ActivatableOptions = {}):
     if ((e.key === " " || e.key === "Spacebar") && spaceArmed) {
       e.preventDefault();
       spaceArmed = false;
-      el.click();
+      activate();
     }
   });
   el.addEventListener("blur", () => {
