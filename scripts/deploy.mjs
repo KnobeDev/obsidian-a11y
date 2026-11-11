@@ -6,7 +6,7 @@ import { dirname, join } from "path";
 // repo-local test vault so the script never depends on a personal path.
 const VAULT_PLUGIN_DIR =
   process.env.OBSIDIAN_PLUGIN_DIR ||
-  join(process.cwd(), "test-vault/.obsidian/plugins/a11y-enhancer");
+  join(process.cwd(), "test-vault/.obsidian/plugins/accessibility-enhancer");
 
 mkdirSync(VAULT_PLUGIN_DIR, { recursive: true });
 

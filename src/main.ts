@@ -1,5 +1,6 @@
-import { Plugin, Platform } from "obsidian";
+import { Notice, Plugin, Platform } from "obsidian";
 import { A11ySettings, DEFAULT_SETTINGS } from "./types";
+import { initialSettings, isLegacyCopyEnabled } from "./legacy-id";
 import { A11yObserver } from "./observer";
 import { Announcer } from "./announcer";
 import { enhanceChrome } from "./enhancers/chrome";
@@ -18,6 +19,13 @@ interface DocContext {
   announcer: Announcer;
   removeEscapeHandler: () => void;
 }
+
+/** Long enough to read or hear in full; it reappears on every launch until resolved. */
+const LEGACY_NOTICE_MS = 15_000;
+// Plain words for the path (no arrow glyph), so screen readers speak it consistently.
+const LEGACY_NOTICE =
+  "Accessibility Enhancer: an older copy (version 0.6.9 or earlier) is still turned on, so every fix runs twice. " +
+  "In Settings, under Community plugins, turn off and uninstall the copy with the older version number.";
 
 export default class A11yEnhancerPlugin extends Plugin {
   settings: A11ySettings = DEFAULT_SETTINGS;
@@ -61,6 +69,8 @@ export default class A11yEnhancerPlugin extends Plugin {
       this.app.workspace.on("file-open", () => this.enforceReadingMode()),
     );
     this.app.workspace.onLayoutReady(() => this.enforceReadingMode());
+    // After layout so the live region is mounted and mirrors the notice.
+    this.app.workspace.onLayoutReady(() => void this.warnIfLegacyCopyEnabled());
 
     // Announce the editor's current line as the caret moves. The extension
     // self-gates on the setting, so it is always registered; toggling the
@@ -220,7 +230,18 @@ export default class A11yEnhancerPlugin extends Plugin {
   }
 
   async loadSettings(): Promise<void> {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    const { adapter, configDir } = this.app.vault;
+    const { settings, carriedOver } = await initialSettings(await this.loadData(), adapter, configDir);
+    this.settings = settings;
+    if (carriedOver) await this.saveData(settings);
+  }
+
+  /** An old-id copy running alongside this one would double every enhancement. */
+  private async warnIfLegacyCopyEnabled(): Promise<void> {
+    const { adapter, configDir } = this.app.vault;
+    if (await isLegacyCopyEnabled(adapter, configDir)) {
+      new Notice(LEGACY_NOTICE, LEGACY_NOTICE_MS);
+    }
   }
 
   async saveSettings(): Promise<void> {
