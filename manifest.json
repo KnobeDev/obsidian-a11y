@@ -1,7 +1,7 @@
 {
   "id": "accessibility-enhancer",
   "name": "Accessibility Enhancer",
-  "version": "0.7.1",
+  "version": "0.7.2",
   "minAppVersion": "1.4.0",
   "description": "Improves accessibility at runtime with keyboard navigation, ARIA roles, names and states, visible focus, reduced motion, and live-region announcements. Community-maintained.",
   "author": "Joshua Hori",

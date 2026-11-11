@@ -6,7 +6,7 @@
 // reader announces a bare "button". We derive a name from the lucide icon class.
 
 import { Platform } from "obsidian";
-import { makeActivatable, setAttr, setRoleIfAbsent, visibleText, isDrawerOpen } from "../dom";
+import { makeActivatable, setAttr, setRoleIfAbsent, visibleText, isSidebarOpen } from "../dom";
 
 /** Known icon → label. Keys are matched against the svg's class tokens. */
 const ICON_LABELS: Record<string, string> = {
@@ -102,16 +102,9 @@ export function enhanceChrome(doc: Document, mobileSupportActive = false): void 
       ensureName(el);
     });
 
-  // Sidebar collapse toggles: expose open/closed state from the body classes (or mobile drawer rects).
-  const body = doc.body;
-  const leftDrawer = doc.querySelector<HTMLElement>(".workspace-drawer.mod-left");
-  const rightDrawer = doc.querySelector<HTMLElement>(".workspace-drawer.mod-right");
-  const leftOpen = (Platform.isMobile && mobileSupportActive)
-    ? (!!leftDrawer && isDrawerOpen(leftDrawer))
-    : body.classList.contains("is-left-sidedock-open");
-  const rightOpen = (Platform.isMobile && mobileSupportActive)
-    ? (!!rightDrawer && isDrawerOpen(rightDrawer))
-    : body.classList.contains("is-right-sidedock-open");
+  // Sidebar collapse toggles: expose open/closed state as core tracks it (desktop and mobile).
+  const leftOpen = isSidebarOpen(doc, "left");
+  const rightOpen = isSidebarOpen(doc, "right");
 
   doc.querySelectorAll<HTMLElement>(".sidebar-toggle-button").forEach((el) => {
     makeActivatable(el, { role: "button" });

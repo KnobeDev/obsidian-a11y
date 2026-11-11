@@ -5,7 +5,14 @@ import { build } from "esbuild";
 async function load(entry) {
   const result = await build({ entryPoints: [entry], bundle: true, write: false, format: "esm", platform: "node", plugins: [{ name: "obsidian-stub", setup(b) {
     b.onResolve({ filter: /^obsidian$/ }, () => ({ path: "obsidian", namespace: "stub" }));
-    b.onLoad({ filter: /.*/, namespace: "stub" }, () => ({ contents: "export const Platform = { isMobile: false }; export const requireApiVersion = () => true;" }));
+    // requireApiVersion compares against globalThis.__obsidianApiVersion (default: newer than any release).
+    b.onLoad({ filter: /.*/, namespace: "stub" }, () => ({ contents: `export const Platform = { isMobile: false };
+      export const requireApiVersion = (want) => {
+        const have = (globalThis.__obsidianApiVersion ?? "999.0.0").split(".").map(Number);
+        const need = want.split(".").map(Number);
+        for (let i = 0; i < 3; i++) if ((have[i] ?? 0) !== (need[i] ?? 0)) return (have[i] ?? 0) > (need[i] ?? 0);
+        return true;
+      };` }));
   } }] });
   return import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString("base64")}`);
 }
@@ -40,7 +47,7 @@ class ElementFake {
   }
 }
 
-const { makeActivatable, isDrawerOpen } = await load("src/dom.ts");
+const { makeActivatable, isSidebarOpen } = await load("src/dom.ts");
 const cases = [];
 function test(name, fn) { cases.push([name, fn]); }
 
@@ -105,15 +112,104 @@ test("modified or consumed Space release cancels pending activation", () => {
   }
   assert.equal(el.clicks, 0);
 });
-test("drawer visibility uses viewport intersection independent of RTL side", () => {
-  const drawer = new ElementFake();
-  drawer.ownerDocument = { defaultView: { innerWidth: 1000, innerHeight: 700 } };
-  for (const side of ["mod-left", "mod-right"]) {
-    drawer.classList.contains = (name) => name === side;
-    for (const [left, right, open] of [[-300, 0, false], [1000, 1300, false], [0, 300, true], [700, 1000, true]]) {
-      drawer.getBoundingClientRect = () => ({ left, right, top: 0, bottom: 700, width: 300, height: 700 });
-      assert.equal(isDrawerOpen(drawer), open, `${side} ${left}`);
-    }
+// Core sets is-{left,right}-sidedock-open (visual side, RTL-aware) on .workspace for
+// desktop sidedocks and mobile drawers alike — 1.12.7 through 1.15.1. Phones on
+// 1.15.1 no longer slide the drawer itself, so its geometry can't signal "open".
+function fakeWorkspace(...classes) {
+  const workspace = new ElementFake();
+  workspace.classList = { contains: (name) => classes.includes(name), add() {}, remove() {} };
+  return workspace;
+}
+test("sidebar open state comes from core's .workspace classes, by visual side", () => {
+  const doc = { querySelector: (s) => (s === ".workspace" ? fakeWorkspace("is-left-sidedock-open", "is-primary-sidedock-open") : null) };
+  assert.equal(isSidebarOpen(doc, "left"), true);
+  assert.equal(isSidebarOpen(doc, "right"), false);
+  assert.equal(isSidebarOpen({ querySelector: () => null }, "left"), false, "before the workspace exists");
+});
+test("sidebar toggles report core's open state, which lives on .workspace, not body", async () => {
+  const { enhanceChrome } = await load("src/enhancers/chrome.ts");
+  const toggle = (side) => {
+    const el = new ElementFake();
+    el.classList = { contains: (name) => name === `mod-${side}` || name === "sidebar-toggle-button", add() {}, remove() {} };
+    el.setAttribute("aria-label", `Toggle ${side} sidebar`);
+    el.closest = () => null;
+    el.querySelector = () => null;
+    return el;
+  };
+  const left = toggle("left");
+  const right = toggle("right");
+  const body = new ElementFake("BODY"); // core never puts the sidedock classes here
+  const workspace = fakeWorkspace("is-right-sidedock-open");
+  const doc = {
+    body,
+    querySelector: (s) => (s === ".workspace" ? workspace : null),
+    querySelectorAll: (s) => (s === ".sidebar-toggle-button" ? [left, right] : []),
+  };
+  enhanceChrome(doc);
+  assert.equal(left.getAttribute("aria-expanded"), "false");
+  assert.equal(right.getAttribute("aria-expanded"), "true");
+});
+
+// Obsidian 1.15.1 handles Space/Enter on the toggle's <label> and takes the inner
+// checkbox out of the tab order (tabindex -1). 1.12.7 left the checkbox focusable
+// (tabindex 0) as the keyboard control and gave the label no key handling.
+function fakeToggle(innerTabindex) {
+  const label = new ElementFake("LABEL");
+  label.classList = { contains: (name) => name === "checkbox-container", add() {}, remove() {} };
+  label.setAttribute("tabindex", "0");
+  const input = new ElementFake("INPUT");
+  input.setAttribute("type", "checkbox");
+  input.setAttribute("tabindex", innerTabindex);
+  label.querySelector = (s) => (s.includes("input") ? input : null);
+  return { label, input };
+}
+test("toggle keys stay with core once core takes the checkbox out of the tab order", async () => {
+  const { enhanceToggle } = await load("src/enhancers/forms.ts");
+  const { label, input } = fakeToggle("-1");
+  enhanceToggle(label);
+  enhanceToggle(label);
+  assert.equal(label.getAttribute("role"), "switch");
+  assert.equal(label.getAttribute("aria-checked"), "false");
+  assert.equal(input.getAttribute("aria-hidden"), "true");
+  assert.equal(label.listeners.size, 0, "no plugin key handlers on top of core's");
+  assert.equal(label.hasAttribute("aria-disabled"), false);
+  label.classList.contains = (name) => name === "checkbox-container" || name === "is-disabled";
+  enhanceToggle(label);
+  assert.equal(label.getAttribute("aria-disabled"), "true", "core's is-disabled is exposed");
+  label.classList.contains = (name) => name === "checkbox-container";
+  enhanceToggle(label);
+  assert.equal(label.hasAttribute("aria-disabled"), false);
+});
+test("toggle keys come from the plugin on builds where only the checkbox was keyboard-operable", async () => {
+  const { enhanceToggle } = await load("src/enhancers/forms.ts");
+  const { label, input } = fakeToggle("0");
+  enhanceToggle(label);
+  enhanceToggle(label); // a later sweep sees tabindex -1, but the plugin set it, not core
+  assert.equal(input.getAttribute("tabindex"), "-1", "one tab stop: the switch");
+  label.fire("keydown", "Enter");
+  label.fire("keydown", " ");
+  label.fire("keyup", " ");
+  assert.equal(label.clicks, 2);
+});
+test("settings section list defers to core keyboard navigation from 1.13.0", async () => {
+  const { enhanceOverlays } = await load("src/enhancers/overlays.ts");
+  globalThis.MutationObserver = class { observe() {} disconnect() {} };
+  const roleOn = (version) => {
+    globalThis.__obsidianApiVersion = version;
+    const header = new ElementFake();
+    header.querySelector = () => null;
+    header.querySelectorAll = () => [];
+    const doc = { body: {}, querySelectorAll: (s) => (s === ".vertical-tab-header" ? [header] : []) };
+    header.ownerDocument = doc;
+    enhanceOverlays(doc);
+    return header.getAttribute("role");
+  };
+  try {
+    assert.equal(roleOn("1.13.0"), null, "1.13.0 Catalyst shipped core keyboard nav");
+    assert.equal(roleOn("1.15.1"), null);
+    assert.equal(roleOn("1.12.7"), "tablist", "older builds keep the shim");
+  } finally {
+    delete globalThis.__obsidianApiVersion;
   }
 });
 test("modal enhancement preserves core initial focus", async () => {
