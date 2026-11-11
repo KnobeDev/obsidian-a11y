@@ -11,7 +11,7 @@ import { A11ySettingTab } from "./settings";
 import { installEscapeEditable } from "./escape-editable";
 import { forceActiveReading } from "./reading-mode";
 import { uninstallTreeKeyboard } from "./enhancers/tree-keyboard";
-import { isDrawerOpen } from "./dom";
+import { isSidebarOpen } from "./dom";
 import { lineAnnouncer } from "./line-announce";
 
 interface DocContext {
@@ -135,8 +135,8 @@ export default class A11yEnhancerPlugin extends Plugin {
     const backdrop = doc.querySelector(".workspace-drawer-backdrop");
     const drawerOpen = !!backdrop;
 
-    const leftOpen = drawerOpen && !!leftDrawer && isDrawerOpen(leftDrawer);
-    const rightOpen = drawerOpen && !!rightDrawer && isDrawerOpen(rightDrawer);
+    const leftOpen = drawerOpen && !!leftDrawer && isSidebarOpen(doc, "left");
+    const rightOpen = drawerOpen && !!rightDrawer && isSidebarOpen(doc, "right");
 
     const bgSelectors = [
       ".workspace-split.mod-root",

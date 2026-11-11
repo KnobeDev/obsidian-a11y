@@ -32,16 +32,19 @@ Enter/Space activation) and appear in the tab order.
 **Plugin shim:** adds `role`/`tabindex` and Enter/Space handlers at runtime; a
 native element would be more robust and wouldn't depend on class names.
 
-**✅ Partially resolved upstream (Obsidian 1.13.4 / 1.13.5):** core added native
+**✅ Partially resolved upstream (Obsidian 1.13.0 / 1.13.5):** core added native
 keyboard navigation to the **Settings** window — arrow keys to move, `Enter` to
-open a tab, `Ctrl/Cmd-F` to focus search, Vim bindings (1.13.4), and
-`Tab`/`Shift-Tab` moving to the next focusable element (1.13.5). As of plugin
-0.6.8 the shim **stops enhancing the settings section list entirely on ≥ 1.13.4**
+open a tab, `Ctrl/Cmd-F` to focus search, Vim bindings (1.13.0 Catalyst, public in
+1.13.4), and `Tab`/`Shift-Tab` moving to the next focusable element (1.13.5). As of
+plugin 0.7.2 the shim **stops enhancing the settings section list entirely on ≥ 1.13.0**
 — both the keyboard handling (running both double-fired focus movement) and the
 `tablist`/`tab` ARIA. Core drives the list as a flat focusable list, so leaving
 the tab roles in place would be a 4.1.2 role/behavior mismatch; the plugin now
 lets core own keyboard *and* semantics there. The ribbon, status bar, sidebar
-toggles, and modal close button remain unresolved in core and are still shimmed.
+toggles, and modal close button remain unresolved in core and are still shimmed
+(re-checked in the 1.15.1 bundle: still `createDiv("clickable-icon …")` with no
+tabindex). By 1.15.1 core also made extra-setting buttons, notice actions and toggle
+labels keyboard-operable; the plugin leaves those keys to core.
 
 > Residual (confirmed on Obsidian 1.13.5 via CDP against the live app, plugin
 > 0.6.8 deferring): core makes the settings section items keyboard-operable
@@ -72,6 +75,13 @@ indicator on keyboard focus.
 
 **Plugin shim:** injects a `:focus-visible` ring stylesheet (it can only override,
 not remove, the global rule).
+
+**Update (1.15.1):** core added `:focus-visible` rings for `.clickable-icon`, settings
+rows and nav items, community items and more, but drew them in
+`--background-modifier-border-focus: var(--color-base-40)`: 1.88:1 on the light
+background and 2.29:1 on the dark one, under the 3:1 a focus indicator needs
+(1.4.11). The global `:focus { outline: none }` is still there. The report should
+now ask for a focus colour with at least 3:1 contrast as well as wider coverage.
 
 ---
 

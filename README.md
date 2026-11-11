@@ -32,7 +32,7 @@ Each toggle in **Settings → Accessibility Enhancer** maps to an audited findin
 |---|---|---|
 | Chrome & navigation | 2.1.1, 4.1.2 | Ribbon, sidebar toggles, status-bar items → operable buttons; sidebar open/closed state exposed |
 | Tabs & file tree | 1.3.1, 4.1.2 | `tablist`/`tab` + roving arrows; `tree`/`treeitem`/`group` with `aria-expanded`/`-level`/`-selected` |
-| Modals & palettes | 2.1.1, 2.4.3, 4.1.2 | `dialog` + focus trap/restore; settings-nav tablist semantics (keyboard deferred to core on Obsidian ≥ 1.13.4 — see [Obsidian version compatibility](#obsidian-version-compatibility)); combobox/listbox for the palette |
+| Modals & palettes | 2.1.1, 2.4.3, 4.1.2 | `dialog` + focus trap/restore; settings-nav tablist semantics (deferred to core on Obsidian ≥ 1.13.0 — see [Obsidian version compatibility](#obsidian-version-compatibility)); combobox/listbox for the palette |
 | Settings controls | 1.3.1, 4.1.2 | Names/descriptions associated; toggle exposes `role="switch"` + `aria-checked` |
 | Visible focus ring | 2.4.7 | Restores a focus indicator the global `outline:none` removed |
 | Announce notices | 4.1.3 | Mirrors toast notices into a polite live region |
@@ -130,20 +130,28 @@ Releases are cut automatically: push a tag equal to the `manifest.json` version
 As Obsidian ships its own accessibility improvements, this plugin **backs off**
 the shims that are no longer needed — running both would double up. The plugin
 still supports `minAppVersion` 1.4.0, so older installs keep the full shim; newer
-ones defer to core.
+ones defer to core. (Catalyst is Obsidian's early-access channel; its builds report
+their version to plugins like any other build.)
 
-| Shim | Deferred to core as of | Why |
+| Shim | When the plugin defers to core | Why |
 |---|---|---|
-| **Settings section list** — the whole enhancement: keyboard nav (arrows / `Enter` / roving tab order) **and** the `tablist`/`tab` ARIA + tab↔panel wiring | **Obsidian 1.13.4** | 1.13.4 added native keyboard navigation to Settings (arrow keys to move, `Enter` to open a tab, `Ctrl/Cmd-F` to focus search, plus Vim bindings), and 1.13.5 made `Tab`/`Shift-Tab` move to the next focusable element there. Keeping the plugin's own key handler on top caused a **double focus jump** on every arrow press. And because core drives the list as a *flat focusable list* (Tab steps through every item) rather than an APG tablist (one tab stop, arrow-only, Tab exits to the panel), leaving the `role="tab"`/`tablist` semantics in place would be a **WCAG 4.1.2 role/behavior mismatch** — the role would promise interaction core doesn't provide. So on ≥ 1.13.4 the plugin stops enhancing the settings section list entirely and lets Obsidian own both the keyboard and the semantics. |
+| **Settings section list** — the whole enhancement: keyboard nav (arrows / `Enter` / roving tab order) **and** the `tablist`/`tab` ARIA + tab↔panel wiring | **Obsidian 1.13.0** (Catalyst; public in 1.13.4) | 1.13.0 added native keyboard navigation to Settings (arrow keys to move, `Enter` to open a tab, `Ctrl/Cmd-F` to focus search, plus Vim bindings), and 1.13.5 (Catalyst; public in 1.13.6) made `Tab`/`Shift-Tab` move to the next focusable element there. Before that, core kept `Tab` on the current row, which isn't an APG tablist either. Keeping the plugin's own key handler on top caused a **double focus jump** on every arrow press. And because core drives the list as a *flat focusable list* (Tab steps through every item) rather than an APG tablist (one tab stop, arrow-only, Tab exits to the panel), leaving the `role="tab"`/`tablist` semantics in place would be a **WCAG 4.1.2 role/behavior mismatch** — the role would promise interaction core doesn't provide. So on ≥ 1.13.0 the plugin stops enhancing the settings section list entirely and lets Obsidian own both the keyboard and the semantics. |
+| **Toggle switch keys** (`Space`/`Enter`) — the `switch` role and `aria-checked` stay | Detected per toggle, not by version | Newer Obsidian (seen in 1.15.1) handles `Space`/`Enter` on the toggle and takes its inner checkbox out of the tab order; the plugin then leaves the keys to core. Older builds (such as 1.12.7) left the checkbox as the keyboard control, so there the plugin supplies the keys for the one switch it exposes. The release notes don't say which version changed this, so the plugin checks the toggle itself. |
 
 If you're on an older Obsidian build, the plugin transparently re-enables its full
-settings-nav shim.
+settings-nav shim. On newer builds the section items are keyboard-operable but
+expose no role; that gap is core's to fix (CORE-9 in [docs/UPSTREAM.md](docs/UPSTREAM.md)).
 
-> **Verification note:** keyboard reachability of the settings section list on
-> Obsidian ≥ 1.13.4 relies on core. This has been reconciled against the changelog
-> but still needs a live keyboard-only + screen-reader (NVDA/VoiceOver) pass on a
-> real 1.13.4 build to confirm the list stays reachable and correctly announced
-> with the shim disabled.
+Everything else is still shimmed because core doesn't provide it as of 1.15.1:
+dialog, tab, tree, switch, combobox and live-region semantics, keyboard access to
+the ribbon, status bar, sidebar toggles and modal close button, a focus ring that
+meets 3:1 contrast, and app-wide reduced motion. See
+[docs/COMPATIBILITY.md](docs/COMPATIBILITY.md) for the evidence.
+
+> **Verification note:** these deferrals are checked against Obsidian's code and
+> release notes, not yet in a running app. They still need a live keyboard-only and
+> screen-reader (NVDA/VoiceOver) pass on 1.15.1, and on an older build such as
+> 1.12.7 for the toggle keys.
 
 ## Limitations (and what we punt upstream)
 

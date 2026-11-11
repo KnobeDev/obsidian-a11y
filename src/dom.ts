@@ -40,6 +40,11 @@ interface ActivatableOptions {
   role?: string;
   /** Explicit tabindex (use -1/0 for roving). Defaults to 0 if unset and missing. */
   tabindex?: number;
+  /**
+   * Supply Enter/Space even though core already made the element focusable.
+   * Only for elements where core is known to add no key handling of its own.
+   */
+  ownKeys?: boolean;
 }
 
 /**
@@ -53,7 +58,7 @@ export function makeActivatable(el: HTMLElement, opts: ActivatableOptions = {}):
   // Keep our own shims eligible on subsequent observer sweeps.
   if (el.matches('button, input, select, textarea, a[href], summary')) return;
   if (opts.role) setRoleIfAbsent(el, opts.role);
-  if (el.hasAttribute("tabindex") && !el.dataset.a11yOnceKbd) return;
+  if (el.hasAttribute("tabindex") && !el.dataset.a11yOnceKbd && !opts.ownKeys) return;
 
   // tabindex is set on every pass (cheaply, via setAttr) so roving state stays
   // correct as the active element changes.
@@ -114,13 +119,15 @@ export function isVisible(el: HTMLElement): boolean {
   return el.getClientRects().length > 0;
 }
 
-/** Detect if a mobile side drawer is visually open by measuring its bounding rect. */
-export function isDrawerOpen(drawer: HTMLElement): boolean {
-  const rect = drawer.getBoundingClientRect();
-  if (rect.width === 0 || rect.height === 0) return false;
-  
-  // Geometric intersection works even when RTL swaps the visual sides.
-  const win = drawer.ownerDocument.defaultView ?? window;
-  return rect.right > 10 && rect.left < win.innerWidth - 10 &&
-    rect.bottom > 0 && rect.top < win.innerHeight;
+export type Side = "left" | "right";
+
+/**
+ * Whether core reports the sidebar on this visual side as open. Core toggles
+ * `is-{left,right}-sidedock-open` on `.workspace` (not body) for desktop
+ * sidedocks and mobile drawers alike, naming the visual side as `.mod-left` /
+ * `.mod-right` do, so it holds under RTL. Geometry can't stand in for it: from
+ * 1.15.1, phones slide the note instead of the drawer.
+ */
+export function isSidebarOpen(doc: Document, side: Side): boolean {
+  return !!doc.querySelector(".workspace")?.classList.contains(`is-${side}-sidedock-open`);
 }

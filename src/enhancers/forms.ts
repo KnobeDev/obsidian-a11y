@@ -7,6 +7,7 @@ import {
   ensureId,
   hideFromAT,
   makeActivatable,
+  removeAttr,
   setAttr,
   setRoleIfAbsent,
   visibleText,
@@ -14,6 +15,35 @@ import {
 
 const CONTROL_SELECTOR =
   'input, select, textarea, .checkbox-container, .dropdown, .slider, [role="button"]';
+
+/** Marks a toggle checkbox that the plugin, not core, took out of the tab order. */
+const PLUGIN_UNFOCUSED = "a11yPluginUnfocused";
+
+/**
+ * Toggle switch: a `label.checkbox-container` wrapping a checkbox. Newer core
+ * (seen in 1.15.1) handles Space/Enter on the label and sets the checkbox to
+ * tabindex -1; older core (1.12.7) left the checkbox as the keyboard control.
+ * The plugin exposes the label as the one switch either way, so it supplies
+ * Space/Enter only when core doesn't.
+ */
+export function enhanceToggle(container: HTMLElement): void {
+  const input = container.querySelector<HTMLElement>('input[type="checkbox"]');
+  const coreOwnsKeys =
+    !!input && input.getAttribute("tabindex") === "-1" && !input.dataset[PLUGIN_UNFOCUSED];
+  if (input) {
+    hideFromAT(input);
+    if (input.getAttribute("tabindex") !== "-1") {
+      input.dataset[PLUGIN_UNFOCUSED] = "1";
+      setAttr(input, "tabindex", "-1");
+    }
+  }
+  setRoleIfAbsent(container, "switch");
+  setAttr(container, "aria-checked", String(container.classList.contains("is-enabled")));
+  // Core marks a disabled toggle only with a class (and ignores clicks on it).
+  if (container.classList.contains("is-disabled")) setAttr(container, "aria-disabled", "true");
+  else removeAttr(container, "aria-disabled");
+  makeActivatable(container, coreOwnsKeys ? {} : { ownKeys: true });
+}
 
 export function enhanceForms(doc: Document): void {
   if (!doc.body) return;
@@ -38,15 +68,8 @@ export function enhanceForms(doc: Document): void {
       : [];
 
     controls.forEach((control) => {
-      // The hidden <input> inside a toggle is replaced by the switch role on its
-      // container; don't expose it as a second control.
-      if (
-        (control.tagName === "INPUT" || control.tagName === "LABEL") &&
-        control.closest(".checkbox-container") &&
-        !control.classList.contains("checkbox-container")
-      ) {
-        hideFromAT(control);
-        setAttr(control, "tabindex", "-1");
+      // The checkbox inside a toggle is handled with its switch (enhanceToggle).
+      if (control.closest(".checkbox-container") && !control.classList.contains("checkbox-container")) {
         return;
       }
 
@@ -60,9 +83,7 @@ export function enhanceForms(doc: Document): void {
 
       // Toggle switch: expose state + keyboard operability + guaranteed name.
       if (control.classList.contains("checkbox-container")) {
-        setRoleIfAbsent(control, "switch");
-        makeActivatable(control, {});
-        setAttr(control, "aria-checked", String(control.classList.contains("is-enabled")));
+        enhanceToggle(control);
         if (!nameId && name && !control.hasAttribute("aria-label")) {
           setAttr(control, "aria-label", name);
         }
